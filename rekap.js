@@ -1,173 +1,175 @@
 // ============================================
-// rekap-v2.js
+// rekap-v2.js (FINAL PATCH - FIX DASHBOARD)
 // Display Rekap dengan Better Error Handling
 // ============================================
 
 console.log('Loading rekap-v2.js...');
 
 async function getRekapSummary(page = 1) {
-  try {
-    console.log(`📥 Fetching rekap summary page ${page}...`);
-    
-    const start = (page - 1) * CONSTANTS.PAGE_SIZE;
-    const end = start + CONSTANTS.PAGE_SIZE - 1;
-    
-    const { data, error, count } = await supabase
-      .from(CONSTANTS.VIEWS.REKAP_SUMMARY)
-      .select('*', { count: 'exact' })
-      .order('total_hutang', { ascending: false })
-      .range(start, end);
-    
-    if (error) {
-      console.error('❌ Error:', error);
-      throw error;
+    try {
+        console.log(`📥 Fetching rekap summary page ${page}...`);
+
+        const start = (page - 1) * CONSTANTS.PAGE_SIZE;
+        const end = start + CONSTANTS.PAGE_SIZE - 1;
+
+        const { data, error, count } = await supabase
+            .from(CONSTANTS.VIEWS.REKAP_SUMMARY)
+            .select('*', { count: 'exact' })
+            .order('total_hutang', { ascending: false })
+            .range(start, end);
+
+        if (error) {
+            console.error('❌ Error:', error);
+            throw error;
+        }
+
+        console.log(`✅ Got ${data?.length || 0} records`);
+
+        return {
+            data: data || [],
+            count: data ? data.length : 0,
+            total: count || 0,
+            page: page,
+            totalPages: Math.ceil((count || 0) / CONSTANTS.PAGE_SIZE),
+        };
+    } catch (error) {
+        console.error('❌ Error in getRekapSummary:', error.message);
+        showAlert('error', `Gagal memuat rekap: ${error.message}`);
+        throw error;
     }
-    
-    console.log(`✅ Got ${data?.length || 0} records`);
-    
-    return {
-      data: data || [],
-      count: data ? data.length : 0,
-      total: count || 0,
-      page: page,
-      totalPages: Math.ceil((count || 0) / CONSTANTS.PAGE_SIZE),
-    };
-  } catch (error) {
-    console.error('❌ Error in getRekapSummary:', error.message);
-    showAlert('error', `Gagal memuat rekap: ${error.message}`);
-    throw error;
-  }
 }
 
 async function getRekapDetailByParent(parentName) {
-  try {
-    console.log(`📋 Fetching rekap detail for: ${parentName}`);
-    
-    const { data, error } = await supabase
-      .from(CONSTANTS.VIEWS.REKAP_DETAIL)
-      .select('*')
-      .eq('parent_name', parentName)
-      .order('tgl_transaksi', { ascending: true });
-    
-    if (error) {
-      console.error('❌ Error:', error);
-      throw error;
+    try {
+        console.log(`📋 Fetching rekap detail for: ${parentName}`);
+
+        const { data, error } = await supabase
+            .from(CONSTANTS.VIEWS.REKAP_DETAIL)
+            .select('*')
+            .eq('parent_name', parentName)
+            .order('tgl_transaksi', { ascending: true });
+
+        if (error) {
+            console.error('❌ Error:', error);
+            throw error;
+        }
+
+        console.log(`✅ Got ${data?.length || 0} detail records`);
+        return data || [];
+    } catch (error) {
+        console.error('❌ Error in getRekapDetailByParent:', error.message);
+        throw error;
     }
-    
-    console.log(`✅ Got ${data?.length || 0} detail records`);
-    return data || [];
-  } catch (error) {
-    console.error('❌ Error in getRekapDetailByParent:', error.message);
-    throw error;
-  }
 }
 
 async function getAllRekapDetail() {
-  try {
-    console.log('📥 Fetching all rekap detail...');
-    
-    const { data, error } = await supabase
-      .from(CONSTANTS.VIEWS.REKAP_DETAIL)
-      .select('*')
-      .order('parent_name', { ascending: true });
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error)
- {
-    console.error('❌ Error:', error.message);
-    throw error;
-  }
+    try {
+        console.log('📥 Fetching all rekap detail...');
+
+        const { data, error } = await supabase
+            .from(CONSTANTS.VIEWS.REKAP_DETAIL)
+            .select('*')
+            .order('parent_name', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('❌ Error:', error.message);
+        throw error;
+    }
 }
 
+// ============================================
+// INI ADALAH FUNGSI YANG DIPERBAIKI (KEMBALI KE VERSI ASLI)
+// ============================================
 async function getRekapStatistics() {
-  try {
-    console.log('📊 Fetching rekap statistics...');
-    
-    // Kita panggil RLS untuk summary
-    const { data, error } = await supabase.rpc('get_rekap_statistics');
+    try {
+        console.log('📊 Fetching rekap statistics...');
 
-    if (error) {
-      console.error('❌ Error fetching stats:', error);
-      throw error;
+        // DIKEMBALIKAN: Ambil data dari VIEW, bukan RPC
+        const { data, error } = await supabase
+            .from(CONSTANTS.VIEWS.REKAP_SUMMARY)
+            .select('*')
+            .order('total_hutang', { ascending: false }); // Tambah order
+
+        if (error) {
+            console.error('❌ Error fetching stats:', error);
+            throw error;
+        }
+
+        const rekapData = data || [];
+
+        // Hitung manual di JS
+        const stats = {
+            totalKeluargaBerutang: rekapData.length,
+            totalTransaksiBelumLunas: rekapData.reduce((sum, r) => sum + (r.jumlah_transaksi || 0), 0),
+            totalHutang: rekapData.reduce((sum, r) => sum + (r.total_hutang || 0), 0),
+            keluargaTerberat: rekapData.length > 0 ? rekapData[0] : null,
+            rekapPerKeluarga: rekapData,
+        };
+
+        console.log(`✅ Statistics:`, stats);
+        return stats;
+    } catch (error) {
+        console.error('❌ Error in getRekapStatistics:', error.message);
+        showAlert('error', `Gagal memuat statistik: ${error.message}`);
+        throw error;
     }
-
-    // Data dari RLS adalah array, ambil objek pertama
-    const stats = data[0] || {
-        total_keluarga_berutang: 0,
-        total_transaksi_belum_lunas: 0,
-        total_hutang: 0,
-        keluarga_terberat_nama: null,
-        keluarga_terberat_hutang: 0
-    };
-
-    // Format data agar sesuai dengan yang diharapkan renderRekapKPI
-    const formattedStats = {
-      totalKeluargaBerutang: stats.total_keluarga_berutang,
-      totalTransaksiBelumLunas: stats.total_transaksi_belum_lunas,
-      totalHutang: stats.total_hutang,
-      keluargaTerberat: stats.keluarga_terberat_nama ? {
-        parent_name: stats.keluarga_terberat_nama,
-        total_hutang: stats.keluarga_terberat_hutang
-      } : null,
-      rekapPerKeluarga: [] // Ini tidak dipakai di KPI
-    };
-    
-    console.log(`✅ Statistics:`, formattedStats);
-    return formattedStats;
-  } catch (error) {
-    console.error('❌ Error in getRekapStatistics:', error.message);
-    showAlert('error', `Gagal memuat statistik: ${error.message}`);
-    throw error;
-  }
 }
 
 async function searchRekap(keyword) {
-  try {
-    console.log(`🔍 Searching rekap: ${keyword}`);
-    
-    if (!keyword || keyword.trim() === '') {
-      return [];
+    try {
+        console.log(`🔍 Searching rekap: ${keyword}`);
+
+        if (!keyword || keyword.trim() === '') {
+            return [];
+        }
+
+        const { data, error } = await supabase
+            .from(CONSTANTS.VIEWS.REKAP_DETAIL) // Search tetap di detail
+            .select('*')
+            .ilike('parent_name', `%${keyword}%`)
+            .limit(100); // Batasi agar tidak terlalu berat
+
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('❌ Error:', error.message);
+        throw error;
     }
-    
-    const { data, error } = await supabase
-      .from(CONSTANTS.VIEWS.REKAP_DETAIL) // Search tetap di detail
-      .select('*')
-      .ilike('parent_name', `%${keyword}%`)
-      .limit(100); // Batasi agar tidak terlalu berat
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    throw error;
-  }
 }
 
 function renderRekapTable(rekapData, containerId = 'rekap-table-body') {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  if (rekapData.length === 0) {
-    container.innerHTML = `
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.warn(`⚠️ Container not found: ${containerId}`);
+        return;
+    }
+
+    // ✅ IMPROVED - Clear dengan lebih hati-hati (hanya clear child nodes)
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+
+
+    if (rekapData.length === 0) {
+        container.innerHTML = `
       <tr>
         <td colspan="8" class="text-center text-muted py-4">
           <i class="fas fa-inbox"></i> Tidak ada data hutang
         </td>
       </tr>
     `;
-    return;
-  }
-  
-  rekapData.forEach((item, index) => {
-    const row = document.createElement('tr');
-    
-    // FIX 4.4: Escape nama parent untuk onclick
-    const escapedParentName = escapeJs(item.parent_name);
-    
-    row.innerHTML = `
+        return;
+    }
+
+    rekapData.forEach((item, index) => {
+        const row = document.createElement('tr');
+
+        // FIX 4.4: Escape nama parent untuk onclick
+        const escapedParentName = escapeJs(item.parent_name);
+
+        row.innerHTML = `
       <td>${index + 1}</td>
       <td><strong>${item.parent_name || '-'}</strong></td>
       <td class="text-center">${item.jumlah_anak || 1}</td>
@@ -181,17 +183,17 @@ function renderRekapTable(rekapData, containerId = 'rekap-table-body') {
         </button>
       </td>
     `;
-    container.appendChild(row);
-  });
+        container.appendChild(row);
+    });
 }
 
 function renderRekapKPI(stats, containerId = 'rekap-kpi') {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  
-  container.innerHTML = `
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = `
     <div class="row g-3">
-      <div classcol-md-3 col-6">
+      <div class="col-md-3 col-6">
         <div class="card border-primary">
           <div class="card-body">
             <h6 class="card-subtitle mb-2 text-muted">Keluarga Berutang</h6>
@@ -232,28 +234,28 @@ function renderRekapKPI(stats, containerId = 'rekap-kpi') {
 }
 
 async function showRekapDetailModal(parentName) {
-  // Hapus modal lama jika ada
-  const oldModal = document.getElementById('rekapDetailModal');
-  if (oldModal) {
-    oldModal.remove();
-  }
-
-  try {
-    showLoading(`Memuat detail ${parentName}...`);
-    
-    const rekapDetail = await getRekapDetailByParent(parentName);
-    
-    hideLoading();
-    
-    if (rekapDetail.length === 0) {
-      showAlert('warning', 'Tidak ada data detail');
-      return;
+    // Hapus modal lama jika ada
+    const oldModal = document.getElementById('rekapDetailModal');
+    if (oldModal) {
+        oldModal.remove();
     }
-    
-    // Hitung total
-    const totalDetail = rekapDetail.reduce((sum, item) => sum + (item.nominal || 0), 0);
-    
-    let html = `
+
+    try {
+        showLoading(`Memuat detail ${parentName}...`);
+
+        const rekapDetail = await getRekapDetailByParent(parentName);
+
+        hideLoading();
+
+        if (rekapDetail.length === 0) {
+            showAlert('warning', 'Tidak ada data detail');
+            return;
+        }
+
+        // Hitung total
+        const totalDetail = rekapDetail.reduce((sum, item) => sum + (item.nominal || 0), 0);
+
+        let html = `
       <div class="modal fade" id="rekapDetailModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
           <div class="modal-content">
@@ -275,9 +277,9 @@ async function showRekapDetailModal(parentName) {
                   </thead>
                   <tbody>
     `;
-    
-    rekapDetail.forEach((item, index) => {
-      html += `
+
+        rekapDetail.forEach((item, index) => {
+            html += `
         <tr>
           <td>${index + 1}</td>
           <td>${item.nama_user || '-'}</td>
@@ -286,9 +288,9 @@ async function showRekapDetailModal(parentName) {
           <td><strong>${formatCurrency(item.nominal || 0)}</strong></td>
         </tr>
       `;
-    });
-    
-    html += `
+        });
+
+        html += `
                   </tbody>
                   <tfoot>
                     <tr class="table-light">
@@ -306,62 +308,62 @@ async function showRekapDetailModal(parentName) {
         </div>
       </div>
     `;
-    
-    // Buat elemen baru dan tambahkan ke body
-    const modalDiv = document.createElement('div');
-    modalDiv.innerHTML = html;
-    const modalElement = modalDiv.firstElementChild;
-    document.body.appendChild(modalElement);
-    
-    // Hapus elemen dari DOM setelah modal ditutup
-    modalElement.addEventListener('hidden.bs.modal', () => {
-      modalElement.remove();
-    });
 
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
-  } catch (error) {
-    hideLoading();
-    console.error('❌ Error:', error.message);
-    showAlert('error', `Gagal memuat: ${error.message}`);
-  }
+        // Buat elemen baru dan tambahkan ke body
+        const modalDiv = document.createElement('div');
+        modalDiv.innerHTML = html;
+        const modalElement = modalDiv.firstElementChild;
+        document.body.appendChild(modalElement);
+
+        // Hapus elemen dari DOM setelah modal ditutup
+        modalElement.addEventListener('hidden.bs.modal', () => {
+            modalElement.remove();
+        });
+
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error:', error.message);
+        showAlert('error', `Gagal memuat: ${error.message}`);
+    }
 }
 
 async function exportRekapDetail(parentName = null) {
-  try {
-    showLoading('Mempersiapkan export...');
-    
-    let rekapData = parentName 
-      ? await getRekapDetailByParent(parentName)
-      : await getAllRekapDetail();
-    
-    hideLoading();
-    
-    if (rekapData.length === 0) {
-      showAlert('warning', 'Tidak ada data untuk diexport');
-      return;
+    try {
+        showLoading('Mempersiapkan export...');
+
+        let rekapData = parentName
+            ? await getRekapDetailByParent(parentName)
+            : await getAllRekapDetail();
+
+        hideLoading();
+
+        if (rekapData.length === 0) {
+            showAlert('warning', 'Tidak ada data untuk diexport');
+            return;
+        }
+
+        let csv = 'No,Parent Name,Nama User,No. KJP,Tanggal Transaksi,Nominal\n';
+
+        rekapData.forEach((item, index) => {
+            csv += `${index + 1},"${item.parent_name || ''}","${item.nama_user || ''}","${item.no_kjp || ''}","${item.tgl_transaksi || ''}","${item.nominal || 0}"\n`;
+        });
+
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv));
+        element.setAttribute('download', `rekap_belum_lunas_${new Date().toISOString().split('T')[0]}.csv`);
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+
+        showAlert('success', 'Data berhasil diexport');
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error:', error.message);
+        showAlert('error', `Gagal: ${error.message}`);
     }
-    
-    let csv = 'No,Parent Name,Nama User,No. KJP,Tanggal Transaksi,Nominal\n';
-    
-    rekapData.forEach((item, index) => {
-      csv += `${index + 1},"${item.parent_name || ''}","${item.nama_user || ''}","${item.no_kjp || ''}","${item.tgl_transaksi || ''}","${item.nominal || 0}"\n`;
-    });
-    
-    const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv));
-    element.setAttribute('download', `rekap_belum_lunas_${new Date().toISOString().split('T')[0]}.csv`);
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    
-    showAlert('success', 'Data berhasil diexport');
-  } catch (error) {
-    hideLoading();
-    console.error('❌ Error:', error.message);
-    showAlert('error', `Gagal: ${error.message}`);
-  }
 }
 
-console.log('✅ rekap-v2.js (PATCHED) loaded successfully!');
+console.log('✅ rekap-v2.js (FINAL PATCH) loaded successfully!');

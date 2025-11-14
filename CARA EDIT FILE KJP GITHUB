@@ -1,0 +1,40 @@
+🔧 WORKFLOW EDITING & BUG FIXES
+📍 JAWABAN SINGKAT:
+Edit HANYA di LOKAL (folder project Anda), BUKAN di GitHub!
+
+text
+LOCAL (folder project)
+    ↓ Edit file
+    ↓ Test di localhost
+    ↓ Jika OK, push ke GitHub
+    ↓
+GITHUB (backup)
+    ↓
+VERCEL (auto-deploy)
+
+STEP 2: Test di Localhost
+text
+1. Simpan file
+2. Buka browser: http://localhost:8000/index.html
+3. Test functionality
+4. Check console (F12) untuk error
+Jika ada error:
+
+Fix di lokal
+Refresh browser
+Test lagi
+
+STEP 3: Push ke GitHub (Jika OK)
+Jika semua working dengan baik di localhost:
+
+text
+cd "D:\BOT\DATA ORDERAN KJP WEB SUPABASE\sembako-kjp"
+git add .
+git commit -m "Fix: [penjelasan bug yang diperbaiki]"
+git push origin main
+Contoh:
+
+text
+git commit -m "Fix: Pagination bug di Data Pelanggan"
+git push origin main
+
