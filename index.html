@@ -349,8 +349,15 @@
                                 <option value="BELUM LUNAS">BELUM LUNAS</option>
                                 <option value="CANCEL">CANCEL</option>
                             </select>
+
                             <button class="btn btn-warning ms-lg-2 mt-2 mt-lg-0" onclick="handleBulkStatusUpdate()">
                                 <i class="fas fa-save"></i> Update
+                            </button>
+                            <!-- ╔═══════════════════════════════════════════╗ -->
+                            <!-- ║  ➕ TAMBAHKAN TOMBOL BARU DI SINI        ║ -->
+                            <!-- ╚═══════════════════════════════════════════╝ -->
+                            <button class="btn btn-danger ms-lg-2 mt-2 mt-lg-0" onclick="handleBulkDeleteListHarian()">
+                                <i class="fas fa-trash"></i> Hapus Massal
                             </button>
                             <button class="btn btn-secondary ms-lg-2 mt-2 mt-lg-0" onclick="clearSelectAllTransaksi()">
                                 <i class="fas fa-times"></i> Batal
@@ -379,23 +386,26 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
+
+            <div class="table-responsive rekap-table-container">
                 <table class="table table-hover table-striped table-transaction-list">
+
                     <thead class="table-light">
                         <tr>
-                            <th>No</th>
-                            <th>Keluarga</th>
-                            <th>Jumlah Anak</th>
-                            <th>Transaksi</th>
-                            <th>Total Hutang</th>
-                            <th>Tgl Awal</th>
-                            <th>Tgl Akhir</th>
-                            <th class="text-center">Aksi</th>
+                            <th style="width: 5%;">No</th>
+                            <th style="width: 30%;">Nama</th>
+                            <th style="width: 35%;">No. KJP</th>
+                            <th style="width: 15%;">Tanggal</th>
+                            <th style="width: 15%;" class="text-right">
+                                Nominal
+                            </th>
                         </tr>
                     </thead>
+
+
                     <tbody id="rekap-table-body">
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
+                            <td colspan="5" class="text-center text-muted py-4">
                                 <i class="fas fa-spinner fa-spin"></i> Memuat rekap...
                             </td>
                         </tr>

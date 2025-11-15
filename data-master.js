@@ -1,9 +1,9 @@
 // ============================================
-// data-master-FIXED-V2.js (FINAL PATCH)
-// CRUD Functions dengan Better Error Handling
+// data-master-FINAL-FIXED.js (FULLY PATCHED)
+// CRUD Functions dengan CSV Import & Validation
 // ============================================
 
-console.log('Loading data-master-FIXED-V2.js...');
+console.log('Loading data-master-FINAL-FIXED.js...');
 
 // ============================================
 // READ FUNCTIONS
@@ -57,15 +57,13 @@ async function searchDataMaster(keyword) {
             return [];
         }
 
-        // ✅ Normalisasi dan bersihkan keyword
         const normalizedKeyword = keyword
-            .replace(/[()[\]{}]/g, '')
+            .replace(/[()\[\]{}]/g, '')
             .trim()
             .toLowerCase();
 
         console.log(`🔍 Normalized keyword: ${normalizedKeyword}`);
 
-        // ✅ LOGIKA BARU: Cek apakah keyword adalah nomor atau nama
         const isNumericKeyword = /^\d+(\s+\d+)*$/.test(normalizedKeyword);
         const cleanNumeric = normalizedKeyword.replace(/\s+/g, '');
 
@@ -76,7 +74,6 @@ async function searchDataMaster(keyword) {
             .select('id, nama_user, no_kjp, no_ktp, parent_name, no_kk');
 
         if (isNumericKeyword) {
-            // ✅ UNTUK NOMOR: Cari sebagai string utuh (jangan split)
             console.log(`🔍 Search mode: NUMERIC (exact match)`);
             query = query.or(
                 `no_kjp.ilike.%${cleanNumeric}%,` +
@@ -84,7 +81,6 @@ async function searchDataMaster(keyword) {
                 `no_kk.ilike.%${cleanNumeric}%`
             );
         } else {
-            // ✅ UNTUK NAMA: Split dan cari yang mengandung SEMUA kata
             console.log(`🔍 Search mode: TEXT (split words)`);
             const keywords = normalizedKeyword.split(/\s+/).filter(k => k.length > 0);
             keywords.forEach(k => {
@@ -96,18 +92,15 @@ async function searchDataMaster(keyword) {
 
         if (error) throw error;
 
-        // ✅ Filter client-side
         let filtered = allResults || [];
 
         if (!isNumericKeyword) {
-            // Untuk nama: filter yang mengandung SEMUA kata
             const keywords = normalizedKeyword.split(/\s+/).filter(k => k.length > 0);
             filtered = filtered.filter(item => {
                 const fullName = `${item.nama_user} ${item.parent_name || ''}`.toLowerCase();
                 return keywords.every(k => fullName.includes(k));
             });
         } else {
-            // Untuk nomor: filter yang cocok
             filtered = filtered.filter(item => {
                 const kjpClean = (item.no_kjp || '').replace(/\s+/g, '').toLowerCase();
                 const ktpClean = (item.no_ktp || '').replace(/\s+/g, '').toLowerCase();
@@ -124,11 +117,6 @@ async function searchDataMaster(keyword) {
     }
 }
 
-
-
-/**
- * Get single data master by ID (untuk pre-fill form transaksi)
- */
 async function getDataMasterById(id) {
     try {
         console.log(`📝 Fetching data master by ID: ${id}`);
@@ -152,15 +140,13 @@ async function getDataMasterById(id) {
     }
 }
 
-
 async function getDataMasterForDropdown() {
     try {
         console.log('📝 Fetching data master for dropdown...');
 
-        // Pastikan semua kolom not-null untuk list_harian diambil
         const { data, error } = await supabase
             .from(CONSTANTS.TABLES.DATA_MASTER)
-            .select('id, nama_user, no_kjp, no_ktp, parent_name, no_kk') // MEMASTIKAN no_kk diambil
+            .select('id, nama_user, no_kjp, no_ktp, parent_name, no_kk')
             .order('nama_user', { ascending: true })
             .limit(500);
 
@@ -294,7 +280,7 @@ async function deleteDataMaster(id) {
     try {
         console.log('🗑️ Deleting data master:', id);
 
-        const confirmed = await confirmDialog('Apakah Anda yakin ingin menghapus data pelanggan ini? Data transaksi terkait akan terpengaruh.');
+        const confirmed = await confirmDialog('Apakah Anda yakin ingin menghapus data pelanggan ini?');
         if (!confirmed) return false;
 
         showLoading('Menghapus data...');
@@ -322,9 +308,6 @@ async function deleteDataMaster(id) {
     }
 }
 
-/**
- * TAMBAHAN: Bulk Delete Data Master
- */
 async function bulkDeleteDataMaster(ids) {
     try {
         console.log(`🗑️ Bulk deleting ${ids.length} data master...`);
@@ -351,16 +334,18 @@ async function bulkDeleteDataMaster(ids) {
 }
 
 // ============================================================
-// ✅ ADDED - IMPORT CSV DATA MASTER FUNCTIONS
+// ✅ IMPORT CSV DATA MASTER FUNCTIONS (FULLY FIXED)
 // ============================================================
 
-let csvDataBuffer = []; // Buffer untuk simpan CSV data
+let csvDataBuffer = [];
 
 /**
  * Handle CSV File Upload & Parse
+ * FIX 1: const file = fileInput.files[0] (bukan fileInput.files)
+ * FIX 2: tgl_tambah split('T')[0] (bukan split('T'))
  */
 function handleCSVFileUpload(fileInput) {
-    const file = fileInput.files[0];
+    const file = fileInput.files[0];  // ✅ FIX 1: Ambil index [0]
     if (!file) return;
 
     const reader = new FileReader();
@@ -369,17 +354,14 @@ function handleCSVFileUpload(fileInput) {
             const csv = e.target.result;
             const rows = csv.split('\n').filter(row => row.trim());
 
-            // ✅ Parse CSV
             const parsedData = [];
 
             rows.forEach((row, index) => {
-                // Skip header jika ada
                 if (index === 0 && (row.includes('Nama') || row.includes('KJP'))) return;
 
                 const cols = row.split(',').map(val => val.trim());
                 const [nama, no_kjp, no_ktp, no_kk] = cols;
 
-                // Validasi minimal
                 if (!nama || !no_kjp) {
                     console.warn(`⚠️ Row ${index}: Nama atau NO KJP kosong, skip`);
                     return;
@@ -387,21 +369,16 @@ function handleCSVFileUpload(fileInput) {
 
                 parsedData.push({
                     nama_user: nama,
-                    no_kjp: no_kjp,
-                    no_ktp: no_ktp || '',
-                    no_kk: no_kk || '',
-                    parent_name: 'Import CSV',
-                    tgl_tambah: new Date().toISOString().split('T')
+                    no_kjp: sanitizeNumber(no_kjp),
+                    no_ktp: sanitizeNumber(no_ktp || ''),
+                    no_kk: sanitizeNumber(no_kk || ''),
+                    parent_name: extractParentName(nama),
+                    tgl_tambah: new Date().toISOString().split('T')[0]  // ✅ FIX 2: Ambil [0]
                 });
             });
 
-            // Store untuk digunakan saat submit
             csvDataBuffer = parsedData;
-
-            // ✅ Show Preview
             showCSVPreview(parsedData);
-
-            // ✅ Enable Import Button
             document.getElementById('importCSVButton').disabled = false;
 
             console.log(`✅ CSV parsed: ${parsedData.length} data`);
@@ -422,32 +399,28 @@ function showCSVPreview(data) {
     const previewDiv = document.getElementById('csvPreview');
     const table = document.getElementById('csvPreviewTable');
 
-    let html = '<table class="table table-sm table-bordered"><thead>';
-    html += '<tr><th>No</th><th>Nama</th><th>NO KJP</th><th>NO KTP</th><th>NO KK</th></tr>';
-    html += '</thead><tbody>';
+    let html = '<table class="table table-sm table-bordered"><thead><tr>';
+    html += '<th>Nama</th><th>NO KJP</th><th>NO KTP</th><th>NO KK</th>';
+    html += '</tr></thead><tbody>';
 
-    data.slice(0, 10).forEach((item, idx) => {
-        html += `<tr>
-            <td>${idx + 1}</td>
-            <td>${item.nama_user}</td>
-            <td>${item.no_kjp}</td>
-            <td>${item.no_ktp}</td>
-            <td>${item.no_kk}</td>
-        </tr>`;
+    data.slice(0, 10).forEach(row => {
+        html += '<tr>';
+        html += `<td>${row.nama_user}</td>`;
+        html += `<td>${row.no_kjp}</td>`;
+        html += `<td>${row.no_ktp}</td>`;
+        html += `<td>${row.no_kk}</td>`;
+        html += '</tr>';
     });
 
-    if (data.length > 10) {
-        html += `<tr><td colspan="5" class="text-center text-muted">... ${data.length - 10} data lainnya</td></tr>`;
-    }
-
     html += '</tbody></table>';
-
     table.innerHTML = html;
     previewDiv.style.display = 'block';
 }
 
 /**
- * Submit CSV Import
+ * Submit CSV Import (FULLY PATCHED)
+ * - Validasi format KJP/KTP/KK
+ * - Convert empty string ke NULL sebelum insert
  */
 async function submitCSVImport() {
     if (csvDataBuffer.length === 0) {
@@ -458,14 +431,56 @@ async function submitCSVImport() {
     try {
         showLoading(`Memproses ${csvDataBuffer.length} data...`);
 
-        // ✅ Validasi NO KJP tidak duplicate
         const errors = [];
         const successData = [];
 
         for (let i = 0; i < csvDataBuffer.length; i++) {
             const item = csvDataBuffer[i];
 
-            // Cek apakah NO KJP sudah ada di database
+            // ✅ Validasi format NO KJP (12-18 digit)
+            const kjpValidation = validateKJP(item.no_kjp);
+            if (!kjpValidation.valid) {
+                errors.push({
+                    row: i + 1,
+                    nama: item.nama_user,
+                    no_kjp: item.no_kjp,
+                    error: kjpValidation.error
+                });
+                console.warn(`⚠️ Row ${i + 1}: ${kjpValidation.error}`);
+                continue;
+            }
+
+            // ✅ Validasi format NO KTP (16 digit, jika ada & tidak kosong)
+            if (item.no_ktp && item.no_ktp.trim()) {
+                const ktpValidation = validateKTP(item.no_ktp);
+                if (!ktpValidation.valid) {
+                    errors.push({
+                        row: i + 1,
+                        nama: item.nama_user,
+                        no_kjp: item.no_kjp,
+                        error: `NO KTP: ${ktpValidation.error}`
+                    });
+                    console.warn(`⚠️ Row ${i + 1}: ${ktpValidation.error}`);
+                    continue;
+                }
+            }
+
+            // ✅ Validasi format NO KK (16 digit, jika ada & tidak kosong)
+            if (item.no_kk && item.no_kk.trim()) {
+                const kkValidation = validateKK(item.no_kk);
+                if (!kkValidation.valid) {
+                    errors.push({
+                        row: i + 1,
+                        nama: item.nama_user,
+                        no_kjp: item.no_kjp,
+                        error: `NO KK: ${kkValidation.error}`
+                    });
+                    console.warn(`⚠️ Row ${i + 1}: ${kkValidation.error}`);
+                    continue;
+                }
+            }
+
+            // Cek duplikat NO KJP
             const { data: existing, error } = await supabase
                 .from(CONSTANTS.TABLES.DATA_MASTER)
                 .select('id')
@@ -485,13 +500,20 @@ async function submitCSVImport() {
             }
         }
 
-        // ✅ Insert yang success
+        // ✅ Insert yang success dengan convert empty string ke NULL
         if (successData.length > 0) {
             showLoading(`Menyimpan ${successData.length} data...`);
 
+            // ✅ Convert empty string to NULL sebelum insert
+            const preparedData = successData.map(item => ({
+                ...item,
+                no_ktp: item.no_ktp && item.no_ktp.trim() ? item.no_ktp : null,
+                no_kk: item.no_kk && item.no_kk.trim() ? item.no_kk : null,
+            }));
+
             const { data, error } = await supabase
                 .from(CONSTANTS.TABLES.DATA_MASTER)
-                .insert(successData);
+                .insert(preparedData);
 
             if (error) {
                 hideLoading();
@@ -503,7 +525,7 @@ async function submitCSVImport() {
 
         hideLoading();
 
-        // ✅ Show Summary
+        // Show Summary
         const summary = `
             <div>
                 <strong>✅ Import CSV Selesai!</strong>
@@ -521,7 +543,7 @@ async function submitCSVImport() {
             console.table(errors);
         }
 
-        // ✅ Tutup modal & refresh table
+        // Tutup modal & refresh table
         const modalElement = document.getElementById('importCSVModal');
         const modal = bootstrap.Modal.getInstance(modalElement);
         if (modal) modal.hide();
@@ -544,9 +566,4 @@ async function submitCSVImport() {
 // END OF IMPORT CSV DATA MASTER FUNCTIONS
 // ============================================================
 
-
-// ============================================
-// EXPORT
-// ============================================
-
-console.log('✅ data-master.js (FINAL PATCH) loaded successfully!');
+console.log('✅ data-master-FINAL-FIXED.js loaded successfully!');

@@ -1686,6 +1686,192 @@ input[type="radio"] {
 }
 
 /* ============================================
+   REKAP BELUM LUNAS - PROFESSIONAL STYLING
+   ============================================ */
+
+/* Table styling untuk rekap detail */
+.rekap-table-container {
+    margin-top: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Header styling */
+.rekap-table-container .table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    padding: 14px 12px;
+    border: none;
+    text-align: left;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.rekap-table-container .table thead th:last-child {
+    text-align: right;
+}
+
+/* Baris data styling */
+.rekap-table-container .table tbody tr {
+    border-bottom: 1px solid #e8e8e8;
+    transition: background-color 0.2s ease;
+}
+
+.rekap-table-container .table tbody tr:hover {
+    background-color: #f8f9ff;
+}
+
+.rekap-table-container .table tbody tr.rekap-spacer {
+    height: 5px;
+    background: transparent;
+    border: none;
+}
+
+.rekap-table-container .table tbody tr.rekap-spacer td {
+    border: none;
+    padding: 0;
+}
+
+/* ✅ KOLOM DATA - SEMUA FONT DIPERBESAR */
+.rekap-table-container .table tbody td {
+    padding: 12px;
+    vertical-align: middle;
+    font-size: 14px;
+    /* ✅ LEBIH BESAR: 13px → 14px */
+    color: #333;
+}
+
+.rekap-table-container .table tbody td:first-child {
+    width: 5%;
+    color: #999;
+    font-size: 13px;
+    /* ✅ LEBIH BESAR: 12px → 13px */
+}
+
+.rekap-table-container .table tbody td:nth-child(2) {
+    width: 28%;
+    font-weight: 500;
+    color: #222;
+    font-size: 14px;
+    /* ✅ TAMBAH: Nama (sebelumnya tidak ada) */
+}
+
+.rekap-table-container .table tbody td:nth-child(3) {
+    width: 35%;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    /* ✅ LEBIH BESAR: 13px → 14px (No. KJP) */
+}
+
+.rekap-table-container .table tbody td:nth-child(4) {
+    width: 15%;
+    color: #666;
+    font-size: 14px;
+    /* ✅ LEBIH BESAR: 13px → 14px (Tanggal) */
+}
+
+.rekap-table-container .table tbody td:nth-child(5) {
+    width: 17%;
+    text-align: right;
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+    /* ✅ TAMBAH: Nominal (sebelumnya tidak ada) */
+}
+
+
+/* ========================================
+   SUBTOTAL ROW - PROFESSIONAL STYLE
+   ======================================== */
+
+.rekap-table-container .table tbody tr.rekap-subtotal-row {
+    background: linear-gradient(90deg, #f5f7ff 0%, #fafbff 100%);
+    border-top: 2px solid #ddd;
+    border-bottom: 2px solid #ddd;
+    font-weight: 600;
+}
+
+.rekap-table-container .table tbody tr.rekap-subtotal-row:hover {
+    background: linear-gradient(90deg, #eef0ff 0%, #f5f6ff 100%);
+}
+
+.rekap-table-container .table tbody tr.rekap-subtotal-row td {
+    padding: 14px 12px;
+    color: #333;
+}
+
+/* Label Total Hutang */
+.rekap-table-container .table tbody td.rekap-subtotal-label {
+    text-align: right !important;
+    color: #555;
+    font-size: 14px;
+    /* ✅ LEBIH BESAR: 13px → 14px */
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.rekap-table-container .table tbody td.rekap-subtotal-label::before {
+    content: "↳ ";
+    color: #667eea;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+/* Value Total Hutang */
+.rekap-table-container .table tbody td.rekap-subtotal-value {
+    text-align: right !important;
+    color: #667eea;
+    font-weight: 700;
+    font-size: 15px;
+    /* ✅ LEBIH BESAR: 14px → 15px */
+    background: rgba(102, 126, 234, 0.08);
+    padding: 14px 16px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+}
+
+/* Empty state */
+.rekap-table-container .table tbody tr.rekap-empty td {
+    padding: 40px 12px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+    /* ✅ TAMBAH */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .rekap-table-container .table {
+        font-size: 13px;
+        /* ✅ LEBIH BESAR: 12px → 13px */
+    }
+
+    .rekap-table-container .table thead th {
+        padding: 10px 8px;
+        font-size: 12px;
+        /* ✅ LEBIH BESAR: 11px → 12px */
+    }
+
+    .rekap-table-container .table tbody td {
+        padding: 10px 8px;
+        font-size: 13px;
+        /* ✅ LEBIH BESAR: 12px → 13px */
+    }
+
+    .rekap-table-container .table tbody td.rekap-subtotal-value {
+        padding: 10px 10px;
+        font-size: 14px;
+        /* ✅ LEBIH BESAR: 13px → 14px */
+    }
+}
+
+
+
+/* ============================================
    END OF STYLES.CSS
    ============================================ */
 /* ============================================ */

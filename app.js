@@ -697,7 +697,20 @@ async function handleSearchListHarian(keyword) {
             return;
         }
 
-        const results = await searchListHarian(keyword);
+        // ╔═══════════════════════════════════════════════════════╗
+        // ║  ➕ TAMBAHKAN: Baca filter dropdown                  ║
+        // ╚═══════════════════════════════════════════════════════╝
+        const filters = {
+            status_order: document.getElementById('filter-status-order')?.value || '',
+            status_bayar: document.getElementById('filter-status-bayar')?.value || '',
+            tgl_order: document.getElementById('filter-tgl-order')?.value || ''
+        };
+
+        // ╔═══════════════════════════════════════════════════════╗
+        // ║  ✅ UBAH: Kirim keyword + filters                    ║
+        // ╚═══════════════════════════════════════════════════════╝
+        const results = await searchListHarian(keyword, filters);
+
 
         let html = '';
         results.forEach((item, index) => {
@@ -747,7 +760,7 @@ async function handleSearchListHarian(keyword) {
         });
 
         // STORE data untuk modal (PATCH 13)
-        currentTransactionList = result.data;
+        currentTransactionList = results;
 
         document.getElementById('list-harian-table-body').innerHTML = html;
         document.getElementById('list-harian-pagination').innerHTML = ''; // Hapus pagination saat search
@@ -758,9 +771,19 @@ async function handleSearchListHarian(keyword) {
 
 /**
  * Handle filter list harian (date & status)
+ * ✅ FIXED: Sinkronkan dengan search box
  */
 function handleFilterListHarian() {
-    loadListHarian(1); // Selalu kembali ke halaman 1 saat filter
+    // ✅ CEK: Apakah ada keyword di search box?
+    const keyword = document.getElementById('search-list-harian')?.value || '';
+
+    if (keyword.trim() !== '') {
+        // Ada keyword → jalankan search dengan filter
+        handleSearchListHarian(keyword);
+    } else {
+        // Tidak ada keyword → load biasa dengan filter
+        loadListHarian(1);
+    }
 }
 
 /**
@@ -855,6 +878,42 @@ async function handleBulkStatusUpdate() {
         console.error('Error bulk status update:', error);
     }
 }
+/**
+ * ➕ TAMBAHAN BARU: Handle bulk delete transaksi harian
+ * Dipanggil saat user klik tombol "Hapus Massal"
+ */
+async function handleBulkDeleteListHarian() {
+    try {
+        if (!selectedTransaksiIds || selectedTransaksiIds.length === 0) {
+            return showAlert('warning', 'Pilih transaksi yang ingin dihapus');
+        }
+
+        // Konfirmasi sebelum hapus
+        const confirmed = await confirmDialog(
+            `Apakah Anda yakin ingin menghapus ${selectedTransaksiIds.length} transaksi terpilih?\n\nProses ini tidak bisa di-undo.`
+        );
+        if (!confirmed) return;
+
+        // Panggil fungsi bulk delete dari list-harian.js
+        const success = await bulkDeleteListHarian(selectedTransaksiIds);
+
+        if (success) {
+            showAlert('success', `${selectedTransaksiIds.length} transaksi berhasil dihapus`);
+
+            // Refresh semua data
+            await loadListHarian(currentPageListHarian);
+            await loadRekap(1);
+            await loadDashboard();
+
+            // Clear selection
+            clearSelectAllTransaksi();
+        }
+    } catch (error) {
+        console.error('Error bulk delete list harian:', error);
+        showAlert('error', `Gagal hapus massal: ${error.message}`);
+    }
+}
+
 
 async function resetFormListHarian() {
     document.getElementById('list-harian-id').value = '';
@@ -1374,21 +1433,25 @@ async function exportListHarian() {
 }
 
 // ============================================
-// REKAP FUNCTIONS
+// REKAP FUNCTIONS (PATCHED - EXPANDED DETAIL VIEW)
 // ============================================
 
 /**
- * Load rekap belum lunas
+ * 🔄 Load rekap belum lunas - DETAIL VIEW (PATCHED)
+ * Mengambil semua detail transaksi per keluarga (bukan summary)
  */
 async function loadRekap(page = 1) {
     try {
         currentPageRekap = page;
-        const result = await getRekapSummary(page);
 
-        // ✅ IMPROVED - Scroll table container ke atas (lebih akurat)
+        // ✅ PERUBAHAN: Ambil ALL DETAIL (bukan getRekapSummary)
+        console.log('📥 Loading rekap dengan detail view...');
+        const detailResult = await getAllRekapDetail();
+
+        // ✅ IMPROVED - Scroll table container ke atas
         const tableResponsive = document.querySelector('#rekap .table-responsive');
         if (tableResponsive) {
-            tableResponsive.scrollTop = 0;  // Scroll container table
+            tableResponsive.scrollTop = 0;
         }
 
         // Juga scroll tab untuk backup
@@ -1397,8 +1460,8 @@ async function loadRekap(page = 1) {
             rekapTab.scrollTop = 0;
         }
 
-
-        renderRekapTable(result.data, 'rekap-table-body');
+        // ✅ RENDER dengan detail data
+        renderRekapTable(detailResult, 'rekap-table-body');
 
         // ✅ ADDED - Focus ke tbody untuk force render
         const tbody = document.getElementById('rekap-table-body');
@@ -1406,67 +1469,191 @@ async function loadRekap(page = 1) {
             tbody.firstChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        renderPagination(result, 'rekap-pagination', loadRekap);
+        // ⚠️ NOTA: Detail view tidak perlu pagination (semua data ditampilkan)
+        document.getElementById('rekap-pagination').innerHTML = '';
 
     } catch (error) {
         console.error('Error loading rekap:', error);
+        showAlert('error', 'Gagal memuat rekap: ' + error.message);
+    }
+}
+
+/**
+ * ✅ FIXED: Render rekap table - EXPANDED DETAIL VIEW (PROFESSIONAL STYLING)
+ */
+function renderRekapTable(detailData, containerId = 'rekap-table-body') {
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.warn(`⚠️ Container not found: ${containerId}`);
+        return;
+    }
+
+    // Clear container
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+
+    // 🔴 Jika tidak ada data
+    if (!detailData || detailData.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.className = 'rekap-empty';
+        emptyRow.innerHTML = `
+            <td colspan="5">
+                <i class="fas fa-inbox"></i> Tidak ada data hutang
+            </td>
+        `;
+        container.appendChild(emptyRow);
+        return;
+    }
+
+    // 🟢 GROUP data by parent_name
+    const groupedData = {};
+    detailData.forEach(item => {
+        if (!groupedData[item.parent_name]) {
+            groupedData[item.parent_name] = [];
+        }
+        groupedData[item.parent_name].push(item);
+    });
+
+    // 🟢 Sort nama keluarga alphabetically
+    const sortedParents = Object.keys(groupedData).sort();
+    let globalNo = 1;
+
+    console.log(`📊 Rendering ${sortedParents.length} keluarga dengan professional styling`);
+
+    // 🟢 RENDER per keluarga dengan subtotal
+    sortedParents.forEach(parentName => {
+        const transactions = groupedData[parentName];
+        let subtotal = 0;
+
+        // 🟢 Render semua transaksi per anak
+        transactions.forEach((item) => {
+            const row = document.createElement('tr');
+            const nominal = item.nominal || 20000;
+            subtotal += nominal;
+
+            row.innerHTML = `
+                <td>${globalNo}</td>
+                <td>${item.nama_user || '-'}</td>
+                <td>${item.no_kjp || '-'}</td>
+                <td>${item.tgl_transaksi ? formatDateToDisplay(item.tgl_transaksi) : '-'}</td>
+                <td>${formatCurrency(nominal)}</td>
+            `;
+            container.appendChild(row);
+            globalNo++;
+        });
+
+        // 🟢 Row TOTAL HUTANG per keluarga - PROFESSIONAL STYLE
+        const subtotalRow = document.createElement('tr');
+        subtotalRow.className = 'rekap-subtotal-row';
+        subtotalRow.innerHTML = `
+            <td colspan="4" class="rekap-subtotal-label">
+                Total Hutang ${parentName}
+            </td>
+            <td class="rekap-subtotal-value">
+                ${formatCurrency(subtotal)}
+            </td>
+        `;
+        container.appendChild(subtotalRow);
+
+        // 🟢 Spacing row antar keluarga
+        const spacerRow = document.createElement('tr');
+        spacerRow.className = 'rekap-spacer';
+        spacerRow.innerHTML = '<td colspan="5"></td>';
+        container.appendChild(spacerRow);
+    });
+
+    console.log(`✅ Render selesai. Total row: ${globalNo - 1}`);
+}
+
+
+/**
+ * View rekap detail per keluarga - MASIH VALID
+ * ⚠️ TIDAK DIPAKAI untuk expanded view
+ */
+async function viewRekapDetail(parentName) {
+    try {
+        console.log('📋 Opening rekap detail for:', parentName);
+
+        // Ambil data detail dari VIEW
+        const details = await getRekapDetailByParent(parentName);
+
+        // ✅ FIX: Hitung total dari VIEW (bukan hardcode)
+        const totalHutang = details.reduce((sum, item) => sum + (item.nominal || 20000), 0);
+
+        // Update modal title
+        document.getElementById('rekap-detail-title').textContent = `Detail: ${parentName}`;
+
+        // Render table body
+        let html = '';
+        details.forEach((item, index) => {
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.nama_user}</td>
+                    <td>${item.no_kjp || '-'}</td>
+                    <td>${formatDateToDisplay(item.tgl_transaksi)}</td>
+                    <td class="text-right">${formatCurrency(item.nominal || 20000)}</td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('rekap-detail-table-body').innerHTML = html;
+
+        // ✅ FIX: Update total hutang di modal
+        document.getElementById('total-hutang-modal').textContent = formatCurrency(totalHutang);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('rekapDetailModal'));
+        modal.show();
+
+    } catch (error) {
+        console.error('Error viewing rekap detail:', error);
+        showAlert('error', 'Gagal memuat detail rekap');
     }
 }
 
 
 /**
- * Handle search rekap
+ * Handle search rekap - UPDATED untuk detail view
  */
 async function handleSearchRekap(keyword) {
     try {
+        // Jika search kosong, load semua
         if (!keyword || keyword.trim() === '') {
             await loadRekap(1);
             return;
         }
 
-        // Fungsi searchRekap (rekap.js) mencari di REKAP_DETAIL
-        // Kita perlu group by manual
+        console.log('🔍 Searching rekap untuk:', keyword);
+
+        // Cari di REKAP_DETAIL
         const results = await searchRekap(keyword);
 
-        const grouped = {};
-        results.forEach(item => {
-            const key = item.parent_name || 'Lain-lain';
-            if (!grouped[key]) {
-                grouped[key] = {
-                    parent_name: key,
-                    jumlah_transaksi: 0,
-                    total_hutang: 0,
-                    jumlah_anak: 0, // Inisialisasi
-                    tgl_transaksi_pertama: item.tgl_transaksi,
-                    tgl_transaksi_terakhir: item.tgl_transaksi,
-                    anak: new Set(), // Untuk menghitung anak unik
-                };
-            }
-            grouped[key].jumlah_transaksi++;
-            grouped[key].total_hutang += (item.nominal || 0);
-            grouped[key].anak.add(item.nama_user); // Tambah nama anak
+        if (!results || results.length === 0) {
+            document.getElementById('rekap-table-body').innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-search"></i> Tidak ada hasil untuk "${keyword}"
+                    </td>
+                </tr>
+            `;
+            document.getElementById('rekap-pagination').innerHTML = '';
+            return;
+        }
 
-            if (item.tgl_transaksi < grouped[key].tgl_transaksi_pertama) {
-                grouped[key].tgl_transaksi_pertama = item.tgl_transaksi;
-            }
-            if (item.tgl_transaksi > grouped[key].tgl_transaksi_terakhir) {
-                grouped[key].tgl_transaksi_terakhir = item.tgl_transaksi;
-            }
-        });
+        // 🟢 RENDER hasil search dengan expanded view
+        renderRekapTable(results, 'rekap-table-body');
+        document.getElementById('rekap-pagination').innerHTML = ''; // Tidak perlu pagination
 
-        // Ubah Set jadi size
-        Object.values(grouped).forEach(group => {
-            group.jumlah_anak = group.anak.size;
-            delete group.anak; // Hapus Set
-        });
+        console.log(`✅ Found ${results.length} transaksi`);
 
-        const data = Object.values(grouped).sort((a, b) => b.total_hutang - a.total_hutang);
-        renderRekapTable(data, 'rekap-table-body');
-        document.getElementById('rekap-pagination').innerHTML = ''; // Hapus pagination
     } catch (error) {
         console.error('Error searching rekap:', error);
+        showAlert('error', 'Gagal mencari rekap');
     }
 }
+
 
 // ============================================
 // HELPER FUNCTIONS

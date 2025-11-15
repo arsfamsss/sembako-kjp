@@ -95,23 +95,39 @@ async function getAllListHarian(filters = {}) {
 }
 
 
-async function searchListHarian(keyword) {
+// ✅ DIPERBAIKI: Tambah parameter filters
+async function searchListHarian(keyword, filters = {}) {
     try {
-        console.log(`🔍 Searching list harian: ${keyword}`);
-
+        console.log(`🔍 Searching list harian: ${keyword}`, filters);
         if (!keyword || keyword.trim() === '') {
             return [];
         }
 
-        // FIX 3.1: Hapus limit
-        const { data, error } = await supabase
+        // Build query dengan filter
+        let query = supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*')
-            .ilike('nama_user', `%${keyword}%`)
-            .order('tgl_order', { ascending: false });
-        // .limit(20); // Dihapus
+            .ilike('nama_user', `%${keyword}%`);
+
+        // ✅ TAMBAHAN: Apply filters jika ada
+        if (filters.status_order) {
+            query = query.eq('status_order', filters.status_order);
+        }
+
+        if (filters.status_bayar) {
+            query = query.eq('status_bayar', filters.status_bayar);
+        }
+
+        if (filters.tgl_order) {
+            query = query.eq('tgl_order', filters.tgl_order);
+        }
+
+        // Execute query
+        const { data, error } = await query.order('tgl_order', { ascending: false });
 
         if (error) throw error;
+
+        console.log(`✅ Found ${data?.length || 0} results`);
         return data || [];
     } catch (error) {
         console.error('❌ Error:', error.message);
@@ -292,6 +308,35 @@ async function deleteListHarian(id) {
         console.error('❌ Error:', error.message);
         showAlert('error', `Gagal: ${error.message}`);
         throw error; // Biarkan app.js menangkap error
+    }
+}
+
+/**
+ * ➕ TAMBAHAN BARU: Bulk Delete List Harian
+ * Hapus banyak transaksi sekaligus berdasarkan array ID
+ */
+async function bulkDeleteListHarian(ids) {
+    try {
+        console.log(`🗑️ Bulk deleting ${ids.length} transaksi...`);
+
+        showLoading(`Menghapus ${ids.length} transaksi...`);
+
+        const { error } = await supabase
+            .from(CONSTANTS.TABLES.LIST_HARIAN)
+            .delete()
+            .in('id', ids);
+
+        hideLoading();
+
+        if (error) throw error;
+
+        console.log('✅ Bulk delete successful');
+        return true;
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error in bulkDeleteListHarian:', error.message);
+        showAlert('error', `Gagal hapus massal: ${error.message}`);
+        return false;
     }
 }
 
