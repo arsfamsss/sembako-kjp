@@ -66,12 +66,18 @@ document.addEventListener('DOMContentLoaded', function () {
  */
 async function loadDashboard() {
     try {
-        // ✅ UPDATED - getDashboardStatistics dengan kolom names BENAR
+        // UPDATED - getDashboardStatistics dengan kolom names BENAR
         const stats = await getDashboardStatistics();
         renderDashboardKPI(stats, 'dashboard-kpi');
-        console.log('✅ Dashboard loaded with new statistics:', stats);
+
+        // ✨ HAPUS pagination yang muncul di dashboard
+        document.getElementById('data-master-pagination').innerHTML = '';
+        document.getElementById('list-harian-pagination').innerHTML = '';
+        document.getElementById('rekap-pagination').innerHTML = '';
+
+        console.log('Dashboard loaded with new statistics', stats);
     } catch (error) {
-        console.error('❌ Error loading dashboard:', error);
+        console.error('Error loading dashboard:', error);
         showAlert('error', `Gagal memuat dashboard: ${error.message}`);
     }
 }
@@ -1451,35 +1457,34 @@ async function loadRekap(page = 1) {
         console.log('📥 Loading rekap dengan detail view...');
         const detailResult = await getAllRekapDetail();
 
-        // ✅ IMPROVED - Scroll table container ke atas
-        const tableResponsive = document.querySelector('#rekap .table-responsive');
-        if (tableResponsive) {
-            tableResponsive.scrollTop = 0;
-        }
-
-        // Juga scroll tab untuk backup
-        const rekapTab = document.getElementById('rekap');
-        if (rekapTab) {
-            rekapTab.scrollTop = 0;
-        }
-
         // ✅ RENDER dengan detail data
         renderRekapTable(detailResult, 'rekap-table-body');
 
-        // ✅ ADDED - Focus ke tbody untuk force render
-        const tbody = document.getElementById('rekap-table-body');
-        if (tbody && tbody.firstChild) {
-            tbody.firstChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
         // ⚠️ NOTA: Detail view tidak perlu pagination (semua data ditampilkan)
         document.getElementById('rekap-pagination').innerHTML = '';
+
+        // 🔧 FIX BARU: POSISIKAN HEADER KE ATAS
+        setTimeout(() => {
+            // Cari header row di tab rekap
+            const rekapTab = document.getElementById('rekap');
+            const headerRow = rekapTab?.querySelector('.row:first-child');
+
+            if (headerRow) {
+                // Scroll ke header dengan smooth
+                headerRow.scrollIntoView({ block: 'start', behavior: 'auto' });
+
+                // Force scroll ke top absolute untuk guarantee
+                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            }
+        }, 50);
 
     } catch (error) {
         console.error('Error loading rekap:', error);
         showAlert('error', 'Gagal memuat rekap: ' + error.message);
     }
 }
+
+
 
 /**
  * ✅ FIXED: Render rekap table - EXPANDED DETAIL VIEW (PROFESSIONAL STYLING)
