@@ -163,6 +163,16 @@
                             <i class="fas fa-times"></i> Batal
                         </button>
 
+                        <!-- ✅ TOMBOL EXPORT BARU -->
+                        <button class="btn btn-success ms-2" onclick="exportDataMasterXLSX()"
+                            title="Export data ke Excel (lengkap)">
+                            <i class="fas fa-file-excel"></i> Export XLSX
+                        </button>
+                        <button class="btn btn-info ms-2" onclick="exportDataMasterJSON()"
+                            title="Export No KJP, KTP, KK ke JSON">
+                            <i class="fas fa-file-code"></i> Export JSON
+                        </button>
+
                         <!-- Tombol Tambah Pelanggan (SELALU AKTIF) -->
                         <button class="btn btn-primary ms-2" data-bs-toggle="modal"
                             data-bs-target="#formDataMasterModal" onclick="resetFormDataMaster()">
@@ -170,6 +180,7 @@
                         </button>
                     </div>
                 </div>
+
 
                 <!-- ========================================== -->
                 <!-- ROW 3: DATA TABLE -->
@@ -646,9 +657,9 @@
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+    <!-- ✅ LIBRARY SHEETJS untuk export XLSX -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="config.js"></script>
     <script src="utils.js"></script>
     <script src="data-master.js"></script>
