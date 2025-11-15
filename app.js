@@ -7,10 +7,16 @@
 let currentPageDataMaster = 1;
 let currentPageListHarian = 1;
 let currentPageRekap = 1;
-let listHarianSortField = 'tgl_order';  // Default sort by date
-let listHarianSortAsc = false;          // Default descending (newest first)
+let listHarianSortField = 'tgl_order';
+let listHarianSortAsc = false;
+
+// ✅ VARIABEL BARU - Sorting Data Master
+let dataMasterSortField = 'nama_user';
+let dataMasterSortAsc = true;
+
 let selectedTransaksiIds = [];
-let selectedDataMasterIds = []; // Untuk bulk delete/add
+let selectedDataMasterIds = [];
+
 
 // ============================================
 // INITIALIZATION
@@ -82,7 +88,6 @@ async function loadDashboard() {
     }
 }
 
-
 // ============================================
 // DATA MASTER FUNCTIONS
 // ============================================
@@ -93,7 +98,8 @@ async function loadDashboard() {
 async function loadDataMaster(page = 1) {
     try {
         currentPageDataMaster = page;
-        const result = await getDataMaster(page);
+        // ✅ KIRIM PARAMETER SORT KE getDataMaster
+        const result = await getDataMaster(page, dataMasterSortField, dataMasterSortAsc);
 
         // Render table
         let html = '';
@@ -109,7 +115,7 @@ async function loadDataMaster(page = 1) {
           <td>${item.parent_name}</td>
           <td><small>${item.no_kjp}</small></td>
           <td><small>${formatNomor(item.no_ktp)}</small></td>
-          <td><small>${formatNomor(item.no_kk)}</small></td>    <!-- ✅ ADDED - Kolom No. KK -->
+          <td><small>${formatNomor(item.no_kk)}</small></td>
           <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
           <td class="text-center">
             <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')">
@@ -132,6 +138,8 @@ async function loadDataMaster(page = 1) {
 
         renderPagination(result, 'data-master-pagination', loadDataMaster);
 
+        // ✅ TAMBAHAN BARU - Render indikator sort panah
+        renderDataMasterSortIndicator();
 
         // ✅ Update UI panel (preserve global selection)
         updateBulkSelectPanelDataMaster();
@@ -139,6 +147,353 @@ async function loadDataMaster(page = 1) {
         console.error('Error loading data master:', error);
     }
 }
+
+// ============================================
+// ✅ SORTING DATA MASTER - FUNGSI BARU
+// ============================================
+
+/**
+ * Handler klik header untuk sorting Data Master
+ */
+function setDataMasterSort(field) {
+    if (dataMasterSortField === field) {
+        // Toggle arah jika field sama
+        dataMasterSortAsc = !dataMasterSortAsc;
+    } else {
+        // Ganti field, reset ke ascending
+        dataMasterSortField = field;
+        dataMasterSortAsc = true;
+    }
+    console.log(`🔄 Sort changed: ${field} ${dataMasterSortAsc ? '↑ ASC' : '↓ DESC'}`);
+    // Reload data dengan sort baru
+    loadDataMaster(1);
+}
+
+/**
+ * Render indikator panah sort di header
+ */
+function renderDataMasterSortIndicator() {
+    // Semua field yang bisa disortir
+    const sortableFields = ['nama_user', 'parent_name', 'no_kjp', 'no_ktp', 'no_kk', 'tgl_tambah'];
+
+    sortableFields.forEach(field => {
+        const el = document.getElementById('sort-' + field);
+        if (el) {
+            if (dataMasterSortField === field) {
+                // Field aktif - tampilkan panah dengan styling BOLD
+                el.innerHTML = dataMasterSortAsc ? ' ▲' : ' ▼';
+                el.style.color = '#0d6efd'; // Warna biru Bootstrap
+                el.style.fontWeight = 'bold';
+                el.style.fontSize = '1.1em'; // Perbesar icon
+                el.style.marginLeft = '4px';
+                el.style.display = 'inline-block'; // Agar bisa menerima styling
+                el.classList.add('sort-active'); // Tambah class untuk CSS override
+            } else {
+                // Field tidak aktif - tampilkan abu-abu samar
+                el.innerHTML = ' ↕'; // Icon default (inactive)
+                el.style.color = '#d0d0d0'; // Warna abu-abu
+                el.style.fontWeight = 'normal';
+                el.style.fontSize = '0.9em';
+                el.style.marginLeft = '4px';
+                el.style.display = 'inline-block';
+                el.classList.remove('sort-active');
+            }
+        }
+    });
+}
+
+
+// ============================================
+// END - SORTING DATA MASTER
+// ============================================
+
+/**
+ * Handle search data master
+ */
+async function handleSearchDataMaster(keyword) {
+    try {
+        if (!keyword || keyword.trim() === '') {
+            await loadDataMaster(1);
+            return;
+        }
+
+        const results = await searchDataMaster(keyword);
+
+        let html = '';
+        results.forEach((item, index) => {
+            // ✅ CEK apakah item ini sudah dipilih sebelumnya
+            const isChecked = selectedDataMasterIds.includes(item.id) ? 'checked' : '';
+
+            html += `
+        <tr>
+          <td>
+            <input type="checkbox" class="dm-checkbox" value="${item.id}" ${isChecked} onchange="updateBulkSelectPanelDataMaster()">
+          </td>
+          <td>${index + 1}</td>
+          <td><strong>${item.nama_user}</strong></td>
+          <td>${item.parent_name}</td>
+          <td><small>${item.no_kjp}</small></td>
+          <td><small>${formatNomor(item.no_ktp)}</small></td>
+          <td><small>${formatNomor(item.no_kk)}</small></td>
+          <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="handleDeleteDataMaster('${item.id}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+        });
+
+        document.getElementById('data-master-table-body').innerHTML = html;
+        document.getElementById('data-master-pagination').innerHTML = '';
+
+        // ✅ Update UI setelah search
+        updateBulkSelectPanelDataMaster();
+    } catch (error) {
+        console.error('Error searching data master:', error);
+    }
+}
+
+/**
+ * Add Data Master
+ */
+async function addDataMaster() {
+    try {
+        const namaUser = document.getElementById('nama-user').value.trim();
+        const parentName = document.getElementById('parent-name').value.trim();
+        const noKJP = sanitizeNumber(document.getElementById('no-kjp').value);
+        const noKTP = sanitizeNumber(document.getElementById('no-ktp').value);
+        const noKK = sanitizeNumber(document.getElementById('no-kk').value);
+
+        // Validasi
+        const kjpValidation = validateKJP(noKJP);
+        if (!kjpValidation.valid) {
+            showAlert('error', kjpValidation.error);
+            return;
+        }
+
+        const ktpValidation = validateKTP(noKTP);
+        if (!ktpValidation.valid) {
+            showAlert('error', ktpValidation.error);
+            return;
+        }
+
+        const kkValidation = validateKK(noKK);
+        if (!kkValidation.valid) {
+            showAlert('error', kkValidation.error);
+            return;
+        }
+
+        if (!namaUser) {
+            showAlert('error', 'Nama User wajib diisi');
+            return;
+        }
+
+        // Call create function
+        await createDataMaster({
+            namaUser,
+            parentName: parentName || namaUser,
+            noKJP,
+            noKTP,
+            noKK
+        });
+
+        // Reset form
+        document.getElementById('data-master-form').reset();
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('add-data-master-modal'));
+        modal.hide();
+
+        // Reload data
+        await loadDataMaster(currentPageDataMaster);
+
+        showAlert('success', 'Data pelanggan berhasil ditambahkan!');
+    } catch (error) {
+        console.error('Error adding data master:', error);
+        showAlert('error', 'Gagal menambahkan data pelanggan');
+    }
+}
+
+/**
+ * Edit Data Master
+ */
+async function editDataMaster(id) {
+    try {
+        const data = await getDataMasterById(id);
+
+        // Populate form
+        document.getElementById('edit-id').value = data.id;
+        document.getElementById('edit-nama-user').value = data.nama_user;
+        document.getElementById('edit-parent-name').value = data.parent_name;
+        document.getElementById('edit-no-kjp').value = data.no_kjp;
+        document.getElementById('edit-no-ktp').value = data.no_ktp;
+        document.getElementById('edit-no-kk').value = data.no_kk;
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('edit-data-master-modal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error loading data for edit:', error);
+        showAlert('error', 'Gagal memuat data untuk edit');
+    }
+}
+
+/**
+ * Update Data Master
+ */
+async function updateDataMasterSubmit() {
+    try {
+        const id = document.getElementById('edit-id').value;
+        const namaUser = document.getElementById('edit-nama-user').value.trim();
+        const parentName = document.getElementById('edit-parent-name').value.trim();
+        const noKJP = sanitizeNumber(document.getElementById('edit-no-kjp').value);
+        const noKTP = sanitizeNumber(document.getElementById('edit-no-ktp').value);
+        const noKK = sanitizeNumber(document.getElementById('edit-no-kk').value);
+
+        // Validasi
+        const kjpValidation = validateKJP(noKJP);
+        if (!kjpValidation.valid) {
+            showAlert('error', kjpValidation.error);
+            return;
+        }
+
+        const ktpValidation = validateKTP(noKTP);
+        if (!ktpValidation.valid) {
+            showAlert('error', ktpValidation.error);
+            return;
+        }
+
+        const kkValidation = validateKK(noKK);
+        if (!kkValidation.valid) {
+            showAlert('error', kkValidation.error);
+            return;
+        }
+
+        if (!namaUser) {
+            showAlert('error', 'Nama User wajib diisi');
+            return;
+        }
+
+        // Call update function
+        await updateDataMasterById(id, {
+            namaUser,
+            parentName: parentName || namaUser,
+            noKJP,
+            noKTP,
+            noKK
+        });
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('edit-data-master-modal'));
+        modal.hide();
+
+        // Reload data
+        await loadDataMaster(currentPageDataMaster);
+
+        showAlert('success', 'Data pelanggan berhasil diupdate!');
+    } catch (error) {
+        console.error('Error updating data master:', error);
+        showAlert('error', 'Gagal mengupdate data pelanggan');
+    }
+}
+
+/**
+ * Delete Data Master dengan konfirmasi
+ */
+async function handleDeleteDataMaster(id) {
+    if (!confirm('Yakin ingin menghapus data pelanggan ini?')) {
+        return;
+    }
+
+    try {
+        await deleteDataMasterById(id);
+        await loadDataMaster(currentPageDataMaster);
+        showAlert('success', 'Data pelanggan berhasil dihapus!');
+    } catch (error) {
+        console.error('Error deleting data master:', error);
+        showAlert('error', 'Gagal menghapus data pelanggan');
+    }
+}
+
+/**
+ * Toggle select all checkboxes di Data Master
+ */
+function toggleSelectAllDataMaster() {
+    const selectAllCheckbox = document.getElementById('select-all-dm');
+    const checkboxes = document.querySelectorAll('.dm-checkbox');
+
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+
+    updateBulkSelectPanelDataMaster();
+}
+
+/**
+ * Update bulk selection panel untuk Data Master
+ */
+function updateBulkSelectPanelDataMaster() {
+    const checkboxes = document.querySelectorAll('.dm-checkbox');
+    const selectedCheckboxes = document.querySelectorAll('.dm-checkbox:checked');
+
+    // ✅ FIXED - Sync global state dengan checkbox yang tercentang
+    selectedDataMasterIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+    const panel = document.getElementById('bulk-panel-dm');
+    const count = document.getElementById('bulk-count-dm');
+
+    if (selectedDataMasterIds.length > 0) {
+        panel.style.display = 'block';
+        count.textContent = selectedDataMasterIds.length;
+    } else {
+        panel.style.display = 'none';
+    }
+
+    // Update select all checkbox
+    const selectAllCheckbox = document.getElementById('select-all-dm');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = checkboxes.length > 0 && selectedCheckboxes.length === checkboxes.length;
+        selectAllCheckbox.indeterminate = selectedCheckboxes.length > 0 && selectedCheckboxes.length < checkboxes.length;
+    }
+}
+
+/**
+ * Bulk delete Data Master
+ */
+async function bulkDeleteDataMaster() {
+    if (selectedDataMasterIds.length === 0) {
+        showAlert('warning', 'Tidak ada data yang dipilih');
+        return;
+    }
+
+    if (!confirm(`Yakin ingin menghapus ${selectedDataMasterIds.length} data pelanggan?`)) {
+        return;
+    }
+
+    try {
+        await bulkDeleteDataMasterByIds(selectedDataMasterIds);
+
+        // Clear selection
+        selectedDataMasterIds = [];
+
+        // Reload
+        await loadDataMaster(currentPageDataMaster);
+
+        showAlert('success', 'Data pelanggan berhasil dihapus!');
+    } catch (error) {
+        console.error('Error bulk deleting:', error);
+        showAlert('error', 'Gagal menghapus data pelanggan');
+    }
+}
+
+// ============================================
+// END - SORTING DATA MASTER
+// ============================================
 
 /**
  * Handle search data master

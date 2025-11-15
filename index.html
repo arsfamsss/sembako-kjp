@@ -182,15 +182,30 @@
                                     <input type="checkbox" id="select-all-dm" onchange="toggleSelectAllDataMaster()">
                                 </th>
                                 <th>No</th>
-                                <th>Nama</th>
-                                <th>Parent</th>
-                                <th>No. KJP</th>
-                                <th>No. KTP</th>
-                                <th>No. KK</th>
-                                <th>Tgl Tambah</th>
+                                <th onclick="setDataMasterSort('nama_user')" style="cursor:pointer; user-select:none;">
+                                    Nama<span id="sort-nama_user"></span>
+                                </th>
+                                <th onclick="setDataMasterSort('parent_name')"
+                                    style="cursor:pointer; user-select:none;">
+                                    Parent<span id="sort-parent_name"></span>
+                                </th>
+                                <th onclick="setDataMasterSort('no_kjp')" style="cursor:pointer; user-select:none;">
+                                    No. KJP<span id="sort-no_kjp"></span>
+                                </th>
+                                <th onclick="setDataMasterSort('no_ktp')" style="cursor:pointer; user-select:none;">
+                                    No. KTP<span id="sort-no_ktp"></span>
+                                </th>
+                                <th onclick="setDataMasterSort('no_kk')" style="cursor:pointer; user-select:none;">
+                                    No. KK<span id="sort-no_kk"></span>
+                                </th>
+                                <th onclick="setDataMasterSort('tgl_tambah')" style="cursor:pointer; user-select:none;">
+                                    Tgl Tambah<span id="sort-tgl_tambah"></span>
+                                </th>
                                 <th class="text-center">Aksi</th>
                             </tr>
                         </thead>
+
+
                         <tbody id="data-master-table-body">
                             <tr>
                                 <td colspan="9" class="text-center text-muted py-4"> <!-- ✅ FIXED - total 9 kolom -->

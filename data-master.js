@@ -9,9 +9,10 @@ console.log('Loading data-master-FINAL-FIXED.js...');
 // READ FUNCTIONS
 // ============================================
 
-async function getDataMaster(page = 1) {
+// ✅ UBAH SIGNATURE - Tambah parameter sort
+async function getDataMaster(page = 1, sortField = 'nama_user', sortAsc = true) {
     try {
-        console.log(`📥 Fetching data master page ${page}...`);
+        console.log(`📥 Fetching data master page ${page}, sort: ${sortField} ${sortAsc ? '↑ ASC' : '↓ DESC'}...`);
 
         if (!supabase) {
             throw new Error('Supabase client not initialized');
@@ -22,10 +23,11 @@ async function getDataMaster(page = 1) {
 
         console.log(`Query range: ${start} to ${end}`);
 
+        // ✅ GUNAKAN PARAMETER SORT DINAMIS
         const { data, error, count } = await supabase
             .from(CONSTANTS.TABLES.DATA_MASTER)
             .select('*', { count: 'exact' })
-            .order('nama_user', { ascending: true })
+            .order(sortField, { ascending: sortAsc })
             .range(start, end);
 
         if (error) {
@@ -48,6 +50,7 @@ async function getDataMaster(page = 1) {
         throw error;
     }
 }
+
 
 async function searchDataMaster(keyword) {
     try {

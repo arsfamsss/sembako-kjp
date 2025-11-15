@@ -2010,3 +2010,42 @@ body {
         color: #666;
         padding: 6px 0;
     }
+
+    /* ✅ Styling untuk header table yang bisa di-sort */
+    thead th[onclick] {
+        transition: background-color 0.2s ease;
+    }
+
+    thead th[onclick]:hover {
+        background-color: rgba(13, 110, 253, 0.1) !important;
+    }
+
+    thead th[onclick] span {
+        margin-left: 4px;
+        font-size: 0.85em;
+    }
+
+    /* ✅ Styling untuk Sort Indicator */
+    span[id^="sort-"] {
+        transition: all 0.3s ease;
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 4px;
+        font-weight: normal;
+    }
+
+    span[id^="sort-"].sort-active {
+        color: #0d6efd !important;
+        font-weight: bold !important;
+        font-size: 1.1em !important;
+        text-shadow: 0 0 2px rgba(13, 110, 253, 0.5);
+    }
+
+    /* Header yang bisa di-sort */
+    thead th[onclick] {
+        transition: background-color 0.2s ease;
+    }
+
+    thead th[onclick]:hover {
+        background-color: rgba(13, 110, 253, 0.08) !important;
+    }
