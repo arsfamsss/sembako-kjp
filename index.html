@@ -66,44 +66,56 @@
 
                 <div id="dashboard-kpi" class="mb-4"></div>
 
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
+                <div class="row mt-5">
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white">
                                 <h5 class="card-title mb-0">
-                                    <i class="fas fa-chart-bar"></i> Distribusi Hutang
+                                    <i class="fas fa-chart-pie"></i> Status Order (Total)
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div id="chart-hutang"
-                                    style="height: 300px; display: flex; align-items: center; justify-content: center;">
-                                    <p class="text-muted">Chart akan ditampilkan di sini</p>
+                                <div style="position: relative; height: 280px;">
+                                    <canvas id="statusOrderChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-success text-white">
                                 <h5 class="card-title mb-0">
-                                    <i class="fas fa-chart-line"></i> Trend Pembayaran
+                                    <i class="fas fa-chart-line"></i> Tren Omzet (30 Hari Terakhir)
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div id="chart-trend"
-                                    style="height: 300px; display: flex; align-items: center; justify-content: center;">
-                                    <p class="text-muted">Chart akan ditampilkan di sini</p>
+                                <div style="position: relative; height: 280px;">
+                                    <canvas id="trendOmzetChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- ============================================ -->
-            <!-- TAB: DATA PELANGGAN (FINAL PATCHED VERSION) -->
-            <!-- ============================================ -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-crown"></i> Top 10 Keluarga (Omzet Terbanyak)
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div style="position: relative; height: 320px;">
+                                    <canvas id="topParentChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
             <div class="tab-pane fade" id="data-master" role="tabpanel">
                 <div class="row mb-4">
                     <div class="col-12">
@@ -111,7 +123,6 @@
                     </div>
                 </div>
 
-                <!-- ✅ ADDED - BUTTON IMPORT CSV -->
                 <div class="row mb-3">
                     <div class="col-12 text-end">
                         <button class="btn btn-primary" onclick="openImportCSVModal()">
@@ -120,9 +131,6 @@
                     </div>
                 </div>
 
-                <!-- ========================================== -->
-                <!-- ROW 1: SEARCH BOX -->
-                <!-- ========================================== -->
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <input type="text" id="search-data-master" class="form-control"
@@ -131,11 +139,7 @@
                 </div>
 
 
-                <!-- ========================================== -->
-                <!-- ROW 2: SELECTION INFO & ACTION BUTTONS -->
-                <!-- ========================================== -->
                 <div class="row mb-3">
-                    <!-- Left: Selection Info (Hidden saat tidak ada selection) -->
                     <div class="col-md-6">
                         <div id="dm-selection-info" style="display: none; font-weight: bold; color: #17a2b8;">
                             <i class="fas fa-check-circle"></i>
@@ -143,27 +147,22 @@
                         </div>
                     </div>
 
-                    <!-- Right: Action Buttons -->
                     <div class="col-md-6 text-end">
-                        <!-- Tombol Buat Transaksi (Disabled saat tidak ada selection) -->
                         <button id="btn-buat-transaksi" class="btn btn-success"
                             onclick="openAddTransaksiFromSelection()" disabled>
                             <i class="fas fa-receipt"></i> <span id="btn-transaksi-text">Buat Transaksi</span>
                         </button>
 
-                        <!-- Tombol Hapus Massal (Disabled saat tidak ada selection) -->
                         <button id="btn-hapus-massal" class="btn btn-danger ms-2" onclick="handleBulkDeleteDataMaster()"
                             disabled>
                             <i class="fas fa-trash"></i> Hapus Massal
                         </button>
 
-                        <!-- Tombol Batal (Hidden & Disabled saat tidak ada selection) -->
                         <button id="btn-batal-selection" class="btn btn-secondary ms-2"
                             onclick="clearSelectAllDataMaster()" disabled style="display: none;">
                             <i class="fas fa-times"></i> Batal
                         </button>
 
-                        <!-- ✅ TOMBOL EXPORT BARU -->
                         <button class="btn btn-success ms-2" onclick="exportDataMasterXLSX()"
                             title="Export data ke Excel (lengkap)">
                             <i class="fas fa-file-excel"></i> Export XLSX
@@ -173,7 +172,6 @@
                             <i class="fas fa-file-code"></i> Export JSON
                         </button>
 
-                        <!-- Tombol Tambah Pelanggan (SELALU AKTIF) -->
                         <button class="btn btn-primary ms-2" data-bs-toggle="modal"
                             data-bs-target="#formDataMasterModal" onclick="resetFormDataMaster()">
                             <i class="fas fa-plus"></i> Tambah Pelanggan
@@ -182,9 +180,6 @@
                 </div>
 
 
-                <!-- ========================================== -->
-                <!-- ROW 3: DATA TABLE -->
-                <!-- ========================================== -->
                 <div class="table-responsive">
                     <table class="table table-hover table-striped">
                         <thead class="table-light">
@@ -219,7 +214,7 @@
 
                         <tbody id="data-master-table-body">
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4"> <!-- ✅ FIXED - total 9 kolom -->
+                                <td colspan="9" class="text-center text-muted py-4">
                                     <i class="fas fa-spinner fa-spin"></i> Memuat data...
                                 </td>
                             </tr>
@@ -227,9 +222,11 @@
 
                     </table>
                 </div>
+
+                <nav id="data-master-pagination" aria-label="Pagination"></nav>
+
             </div>
 
-            <!-- ✅ ADDED - MODAL IMPORT CSV DATA MASTER -->
             <div class="modal fade" id="importCSVModal" tabindex="-1" role="dialog">
                 <div class="modal-dialog modal-lg" role="document">
                     <div class="modal-content">
@@ -240,21 +237,19 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <!-- Info -->
                             <div class="alert alert-info">
                                 <strong>Format CSV:</strong> Nama, NO KJP, NO KTP, NO KK
                                 <br>
-                                <small>Contoh: Sakinah Jagal, 5049 4885 0862 8749, 1234567890123456, 1234567890</small>
+                                <small>Contoh: Sakinah Jagal, 5049 4885 0862 8749, 1234567890123456,
+                                    1234567890</small>
                             </div>
 
-                            <!-- File Input -->
                             <div class="mb-3">
                                 <label for="csvFileInput" class="form-label">Pilih File CSV:</label>
                                 <input type="file" class="form-control" id="csvFileInput" accept=".csv"
                                     onchange="handleCSVFileUpload(this)">
                             </div>
 
-                            <!-- Preview -->
                             <div id="csvPreview" style="display:none;">
                                 <strong>Preview Data (10 pertama):</strong>
                                 <div id="csvPreviewTable"
@@ -275,174 +270,169 @@
                 </div>
             </div>
 
-            <nav id="data-master-pagination" aria-label="Pagination"></nav>
-        </div>
-
-        <div class="tab-pane fade" id="list-harian" role="tabpanel">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h4 class="mb-3"><i class="fas fa-receipt"></i> Transaksi Harian</h4>
+            <div class="tab-pane fade" id="list-harian" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h4 class="mb-3"><i class="fas fa-receipt"></i> Transaksi Harian</h4>
+                    </div>
                 </div>
-            </div>
 
-            <div class="row mb-3">
-                <div class="col-md-2">
-                    <input type="text" id="search-list-harian" class="form-control"
-                        placeholder="Cari transaksi (nama)..." oninput="handleSearchListHarian(this.value)">
+                <div class="row mb-3">
+                    <div class="col-md-2">
+                        <input type="text" id="search-list-harian" class="form-control"
+                            placeholder="Cari transaksi (nama)..." oninput="handleSearchListHarian(this.value)">
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filter-status-order" class="form-select" onchange="handleFilterListHarian()">
+                            <option value="">Semua Status Order</option>
+                            <option value="SUKSES">SUKSES</option>
+                            <option value="PROSES">PROSES</option>
+                            <option value="GAGAL">GAGAL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filter-status-bayar" class="form-select" onchange="handleFilterListHarian()">
+                            <option value="">Semua Status Bayar</option>
+                            <option value="LUNAS">LUNAS</option>
+                            <option value="BELUM LUNAS">BELUM LUNAS</option>
+                            <option value="CANCEL">CANCEL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" id="filter-tgl-order" class="form-control"
+                            onchange="handleFilterListHarian()">
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-info btn-sm" onclick="openImportTelegramModal()">
+                            <i class="fas fa-file-upload"></i> Import dari Telegram
+                        </button>
+                        <button class="btn btn-success ms-2" onclick="exportListHarian()">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
+
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <!-- ✅ ADDED - Filter Status Order -->
-                    <select id="filter-status-order" class="form-select" onchange="handleFilterListHarian()">
-                        <option value="">Semua Status Order</option>
-                        <option value="SUKSES">SUKSES</option>
-                        <option value="PROSES">PROSES</option>
-                        <option value="GAGAL">GAGAL</option>
-                    </select>
+
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="select-all-transaksi"
+                                        onchange="toggleSelectAllTransaksi()">
+                                </th>
+                                <th>No</th>
+                                <th>Nama</th>
+                                <th>No. KJP</th>
+                                <th>Tgl Order</th>
+                                <th>Status Order</th>
+                                <th>Status Bayar</th>
+                                <th class="text-center">Detail</th>
+                                <th class="text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="list-harian-table-body">
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-spinner fa-spin"></i> Memuat transaksi...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="col-md-2">
-                    <select id="filter-status-bayar" class="form-select" onchange="handleFilterListHarian()">
-                        <option value="">Semua Status Bayar</option>
-                        <option value="LUNAS">LUNAS</option>
-                        <option value="BELUM LUNAS">BELUM LUNAS</option>
-                        <option value="CANCEL">CANCEL</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="date" id="filter-tgl-order" class="form-control" onchange="handleFilterListHarian()">
-                </div>
-                <div class="col-md-4 text-end">
-                    <!-- Button Import Telegram -->
-                    <button class="btn btn-info btn-sm" onclick="openImportTelegramModal()">
-                        <i class="fas fa-file-upload"></i> Import dari Telegram
-                    </button>
-                    <!-- Button Export CSV -->
-                    <button class="btn btn-success ms-2" onclick="exportListHarian()">
-                        <i class="fas fa-download"></i> Export CSV
-                    </button>
 
-                </div>
-            </div>
+                <div id="bulk-update-panel" class="card mt-3" style="display: none;">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-lg-4 mb-2 mb-lg-0">
+                                <p class="mb-0">
+                                    <strong id="selected-count">0</strong> transaksi dipilih
+                                </p>
+                            </div>
+                            <div class="col-lg-8 text-lg-end">
+                                <select id="bulk-status-order-select" class="form-select d-inline-block"
+                                    style="width: auto;">
+                                    <option value="">Ubah Status Order:</option>
+                                    <option value="SUKSES">SUKSES</option>
+                                    <option value="PROSES">PROSES</option>
+                                    <option value="GAGAL">GAGAL</option>
+                                </select>
 
+                                <select id="bulk-status-bayar-select"
+                                    class="form-select d-inline-block ms-lg-2 mt-2 mt-lg-0" style="width: auto;">
+                                    <option value="">Ubah Status Bayar:</option>
+                                    <option value="LUNAS">LUNAS</option>
+                                    <option value="BELUM LUNAS">BELUM LUNAS</option>
+                                    <option value="CANCEL">CANCEL</option>
+                                </select>
 
-            <div class="table-responsive">
-                <table class="table table-hover table-striped">
-                    <thead class="table-light">
-                        <tr>
-                            <th>
-                                <input type="checkbox" id="select-all-transaksi" onchange="toggleSelectAllTransaksi()">
-                            </th>
-                            <th>No</th>
-                            <th>Nama</th>
-                            <th>No. KJP</th>
-                            <th>Tgl Order</th>
-                            <th>Status Order</th>
-                            <th>Status Bayar</th>
-                            <th class="text-center">Detail</th>
-                            <th class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="list-harian-table-body">
-                        <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
-                                <i class="fas fa-spinner fa-spin"></i> Memuat transaksi...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div id="bulk-update-panel" class="card mt-3" style="display: none;">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-lg-4 mb-2 mb-lg-0">
-                            <p class="mb-0">
-                                <strong id="selected-count">0</strong> transaksi dipilih
-                            </p>
-                        </div>
-                        <div class="col-lg-8 text-lg-end">
-                            <select id="bulk-status-order-select" class="form-select d-inline-block"
-                                style="width: auto;">
-                                <option value="">Ubah Status Order:</option>
-                                <option value="SUKSES">SUKSES</option>
-                                <option value="PROSES">PROSES</option> <!-- ✅ FIXED -->
-                                <option value="GAGAL">GAGAL</option> <!-- ✅ ADDED -->
-                            </select>
-
-                            <select id="bulk-status-bayar-select"
-                                class="form-select d-inline-block ms-lg-2 mt-2 mt-lg-0" style="width: auto;">
-                                <option value="">Ubah Status Bayar:</option>
-                                <option value="LUNAS">LUNAS</option>
-                                <option value="BELUM LUNAS">BELUM LUNAS</option>
-                                <option value="CANCEL">CANCEL</option>
-                            </select>
-
-                            <button class="btn btn-warning ms-lg-2 mt-2 mt-lg-0" onclick="handleBulkStatusUpdate()">
-                                <i class="fas fa-save"></i> Update
-                            </button>
-                            <!-- ╔═══════════════════════════════════════════╗ -->
-                            <!-- ║  ➕ TAMBAHKAN TOMBOL BARU DI SINI        ║ -->
-                            <!-- ╚═══════════════════════════════════════════╝ -->
-                            <button class="btn btn-danger ms-lg-2 mt-2 mt-lg-0" onclick="handleBulkDeleteListHarian()">
-                                <i class="fas fa-trash"></i> Hapus Massal
-                            </button>
-                            <button class="btn btn-secondary ms-lg-2 mt-2 mt-lg-0" onclick="clearSelectAllTransaksi()">
-                                <i class="fas fa-times"></i> Batal
-                            </button>
+                                <button class="btn btn-warning ms-lg-2 mt-2 mt-lg-0" onclick="handleBulkStatusUpdate()">
+                                    <i class="fas fa-save"></i> Update
+                                </button>
+                                <button class="btn btn-danger ms-lg-2 mt-2 mt-lg-0"
+                                    onclick="handleBulkDeleteListHarian()">
+                                    <i class="fas fa-trash"></i> Hapus Massal
+                                </button>
+                                <button class="btn btn-secondary ms-lg-2 mt-2 mt-lg-0"
+                                    onclick="clearSelectAllTransaksi()">
+                                    <i class="fas fa-times"></i> Batal
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <nav id="list-harian-pagination" aria-label="Pagination"></nav>
             </div>
 
-            <nav id="list-harian-pagination" aria-label="Pagination"></nav>
+            <div class="tab-pane fade" id="rekap" role="tabpanel" style="padding-top: 0; margin-top: 0;">
+                <div class="row mb-4" style="margin-top: 0; padding-top: 0;">
+                    <div class="col-12">
+                        <h4 class="mb-3"><i class="fas fa-file-invoice-dollar"></i> Rekap Belum Lunas</h4>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <input type="text" id="search-rekap" class="form-control" placeholder="Cari keluarga..."
+                            oninput="handleSearchRekap(this.value)">
+                    </div>
+                    <div class="col-md-6 text-end">
+                    </div>
+                </div>
+
+
+                <div class="table-responsive rekap-table-container">
+                    <table class="table table-hover table-striped table-transaction-list">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 5%;">No</th>
+                                <th style="width: 30%;">Nama</th>
+                                <th style="width: 35%;">No. KJP</th>
+                                <th style="width: 15%;">Tanggal</th>
+                                <th style="width: 15%;" class="text-right">
+                                    Nominal
+                                </th>
+                            </tr>
+                        </thead>
+
+
+                        <tbody id="rekap-table-body">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    <i class="fas fa-spinner fa-spin"></i> Memuat rekap...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <nav id="rekap-pagination" aria-label="Pagination"></nav>
+            </div>
+
         </div>
-
-        <div class="tab-pane fade" id="rekap" role="tabpanel" style="padding-top: 0; margin-top: 0;">
-            <div class="row mb-4" style="margin-top: 0; padding-top: 0;">
-                <div class="col-12">
-                    <h4 class="mb-3"><i class="fas fa-file-invoice-dollar"></i> Rekap Belum Lunas</h4>
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <input type="text" id="search-rekap" class="form-control" placeholder="Cari keluarga..."
-                        oninput="handleSearchRekap(this.value)">
-                </div>
-                <div class="col-md-6 text-end">
-                </div>
-            </div>
-
-
-            <div class="table-responsive rekap-table-container">
-                <table class="table table-hover table-striped table-transaction-list">
-
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 5%;">No</th>
-                            <th style="width: 30%;">Nama</th>
-                            <th style="width: 35%;">No. KJP</th>
-                            <th style="width: 15%;">Tanggal</th>
-                            <th style="width: 15%;" class="text-right">
-                                Nominal
-                            </th>
-                        </tr>
-                    </thead>
-
-
-                    <tbody id="rekap-table-body">
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                <i class="fas fa-spinner fa-spin"></i> Memuat rekap...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <nav id="rekap-pagination" aria-label="Pagination"></nav>
-        </div>
-
-    </div>
     </div>
 
     <div class="modal fade" id="formDataMasterModal" tabindex="-1">
@@ -518,7 +508,6 @@
                         <input type="hidden" id="list-harian-id">
                         <input type="hidden" id="id-master">
 
-                        <!-- Field: Pilih Pelanggan (untuk mode edit/manual) -->
                         <div id="field-pilih-pelanggan">
                             <div class="mb-3">
                                 <label for="nama-pelanggan" class="form-label">Pilih Pelanggan <span
@@ -530,11 +519,9 @@
                             </div>
                         </div>
 
-                        <!-- Field: Info Pelanggan (untuk mode add dari checkbox) -->
                         <div id="field-info-pelanggan" style="display: none; margin-bottom: 1rem;">
                             <label class="form-label">Pelanggan Terpilih</label>
                             <div class="alert alert-info mb-0" id="info-pelanggan-text">
-                                <!-- Info akan ditampilkan di sini -->
                             </div>
                         </div>
 
@@ -564,8 +551,8 @@
                                         class="text-danger">*</span></label>
                                 <select class="form-select" id="status_order" required>
                                     <option value="SUKSES">SUKSES</option>
-                                    <option value="PROSES">PROSES</option> <!-- ✅ FIXED -->
-                                    <option value="GAGAL">GAGAL</option> <!-- ✅ ADDED -->
+                                    <option value="PROSES">PROSES</option>
+                                    <option value="GAGAL">GAGAL</option>
                                 </select>
 
                             </div>
@@ -622,8 +609,8 @@
                                         class="text-danger">*</span></label>
                                 <select class="form-select" id="bulk-status-order" required>
                                     <option value="SUKSES" selected>SUKSES</option>
-                                    <option value="PROSES">PROSES</option> <!-- ✅ FIXED -->
-                                    <option value="GAGAL">GAGAL</option> <!-- ✅ ADDED -->
+                                    <option value="PROSES">PROSES</option>
+                                    <option value="GAGAL">GAGAL</option>
                                 </select>
 
                             </div>
@@ -658,8 +645,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- ✅ LIBRARY SHEETJS untuk export XLSX -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="config.js"></script>
     <script src="utils.js"></script>
     <script src="data-master.js"></script>
@@ -668,7 +654,6 @@
     <script src="app.js"></script>
     <script src="telegram-parser.js"></script>
 
-    <!-- MODAL DETAIL TRANSAKSI (PATCH 13) -->
     <div class="modal fade modal-transaction-detail" id="detailTransactionModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -677,7 +662,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="detailTransactionModal-body">
-                    <!-- Content will be inserted here -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
@@ -686,7 +670,6 @@
         </div>
     </div>
 
-    <!-- Modal Import Telegram -->
     <div class="modal fade" id="importTelegramModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">

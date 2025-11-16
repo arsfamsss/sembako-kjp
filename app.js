@@ -1,5 +1,5 @@
 // ============================================
-// app.js (FINAL PATCH - FIX ALL)
+// app.js (v_FINAL_BERSIH)
 // Main Application Logic & Event Handlers
 // ============================================
 
@@ -32,14 +32,18 @@ async function initializeApp() {
         // Set user info
         document.getElementById('user-info').textContent = 'Admin User';
 
-        // Load initial data
-        await loadDataMaster();
-        await loadListHarian();
-        await loadRekap();
-        await loadDashboard();
+        // ========================================================
+        // ✅ PATCH 1: HANYA LOAD DASHBOARD (TAB AKTIF PERTAMA)
+        // Data lain akan diload oleh tab listener saat di-klik
+        // ========================================================
+        // await loadDataMaster(); // <-- DIHAPUS
+        // await loadListHarian(); // <-- DIHAPUS
+        // await loadRekap(); // <-- DIHAPUS
+        await loadDashboard(); 
 
         console.log('✅ App initialized successfully!');
-    } catch (error) {
+    } catch (error)
+ {
         console.error('❌ Error initializing app:', error);
         showAlert('error', 'Gagal menginisialisasi aplikasi');
     }
@@ -72,16 +76,48 @@ document.addEventListener('DOMContentLoaded', function () {
  */
 async function loadDashboard() {
     try {
-        // UPDATED - getDashboardStatistics dengan kolom names BENAR
+        // 1. Load KPI Statistics
         const stats = await getDashboardStatistics();
         renderDashboardKPI(stats, 'dashboard-kpi');
 
-        // ✨ HAPUS pagination yang muncul di dashboard
         document.getElementById('data-master-pagination').innerHTML = '';
         document.getElementById('list-harian-pagination').innerHTML = '';
         document.getElementById('rekap-pagination').innerHTML = '';
 
-        console.log('Dashboard loaded with new statistics', stats);
+        console.log('📊 Loading charts...');
+
+        // 2. Get date range (bulan ini untuk grafik 1 & 3, 30 hari untuk grafik 2)
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+        const endOfMonthStr = now.toISOString().split('T')[0];
+
+        // Get 30 hari ke belakang
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(now.getDate() - 29);
+        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+        // 3. Fetch data
+        const { data: thisMonthData } = await supabase
+            .from(CONSTANTS.TABLES.LIST_HARIAN)
+            .select('*')
+            .gte('tgl_order', startOfMonthStr)
+            .lte('tgl_order', endOfMonthStr);
+
+        const { data: last30DaysData } = await supabase
+            .from(CONSTANTS.TABLES.LIST_HARIAN)
+            .select('*')
+            .gte('tgl_order', thirtyDaysAgoStr)
+            .lte('tgl_order', endOfMonthStr)
+            .eq('status_bayar', 'LUNAS');
+
+        // 4. Render charts
+        renderStatusOrderChart(thisMonthData || []);
+        renderTrendOmzetChart(last30DaysData || []);
+        renderTopParentChart(thisMonthData || []);
+
+        console.log('✅ Dashboard charts loaded!');
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
         showAlert('error', `Gagal memuat dashboard: ${error.message}`);
@@ -89,19 +125,247 @@ async function loadDashboard() {
 }
 
 // ============================================
-// DATA MASTER FUNCTIONS
+// CHART FUNCTIONS - FIXED VERSION (NO DUPLICATES)
 // ============================================
+
+/**
+ * Grafik 1: Status Order (Donut Chart)
+ * Sukses (Hijau), Gagal (Merah), Proses (Kuning)
+ */
+function renderStatusOrderChart(data) {
+    try {
+        const sukses = data.filter(d => d.status_bayar === 'LUNAS').length;
+        const gagal = data.filter(d => d.status_bayar === 'GAGAL').length;
+        const proses = data.filter(d => d.status_bayar === 'PROSES').length;
+
+        const ctx = document.getElementById('statusOrderChart');
+        if (!ctx) {
+            console.warn('⚠️ Canvas statusOrderChart not found');
+            return;
+        }
+
+        // ✅ FIX: Proper destroy check
+        if (window.statusOrderChart && typeof window.statusOrderChart.destroy === 'function') {
+            window.statusOrderChart.destroy();
+        }
+
+        window.statusOrderChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [`Sukses (${sukses})`, `Gagal (${gagal})`, `Proses (${proses})`],
+                datasets: [{
+                    data: [sukses, gagal, proses],
+                    backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } }
+                }
+            }
+        });
+
+        console.log('✅ Status Order Chart rendered:', { sukses, gagal, proses });
+
+    } catch (error) {
+        console.error('❌ Error rendering Status Order Chart:', error);
+    }
+}
+
+/**
+ * Grafik 2: Tren Omzet 30 Hari (Line Chart)
+ * Dual axis: Omzet & Jumlah Transaksi
+ */
+function renderTrendOmzetChart(data) {
+    try {
+        if (!data || data.length === 0) {
+            console.warn('⚠️ No data for trend chart');
+            return;
+        }
+
+        const trenByDate = {};
+        data.forEach(d => {
+            const date = d.tgl_order;
+            if (!trenByDate[date]) trenByDate[date] = { omzet: 0, transaksi: 0 };
+            trenByDate[date].omzet += d.amount || 0;
+            trenByDate[date].transaksi += 1;
+        });
+
+        const sortedDates = Object.keys(trenByDate).sort();
+        const labels = sortedDates.map(d => new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
+        const omzetData = sortedDates.map(d => Math.round(trenByDate[d].omzet / 1000));
+        const transaksiData = sortedDates.map(d => trenByDate[d].transaksi);
+
+        const ctx = document.getElementById('trendOmzetChart');
+        if (!ctx) {
+            console.warn('⚠️ Canvas trendOmzetChart not found');
+            return;
+        }
+
+        // ✅ FIX: Proper destroy check
+        if (window.trendOmzetChart && typeof window.trendOmzetChart.destroy === 'function') {
+            window.trendOmzetChart.destroy();
+        }
+
+        window.trendOmzetChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Omzet (Rp Ribu)',
+                        data: omzetData,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.05)',
+                        tension: 0.3,
+                        fill: true,
+                        yAxisID: 'y',
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Transaksi',
+                        data: transaksiData,
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.05)',
+                        tension: 0.3,
+                        fill: true,
+                        yAxisID: 'y1',
+                        pointRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Omzet (Rp)' } },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Transaksi' }, grid: { drawOnChartArea: false } }
+                },
+                plugins: {
+                    legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } }
+                }
+            }
+        });
+
+        console.log('✅ Trend Omzet Chart rendered, dates:', sortedDates.length);
+
+    } catch (error) {
+        console.error('❌ Error rendering Trend Omzet Chart:', error);
+    }
+}
+
+/**
+ * Grafik 3: Top 10 Keluarga (Bar Horizontal)
+ * Omzet & Jumlah Anggota grouped by parent_name
+ */
+function renderTopParentChart(data) {
+    try {
+        const parentStats = {};
+        data.forEach(d => {
+            const parent = d.parent_name || 'Tanpa Parent';
+            if (!parentStats[parent]) parentStats[parent] = { omzet: 0, count: 0 };
+            if (d.status_bayar === 'LUNAS') {
+                parentStats[parent].omzet += d.amount || 0;
+                parentStats[parent].count += 1;
+            }
+        });
+
+        const topParents = Object.entries(parentStats)
+            .map(([name, stats]) => ({ name, ...stats }))
+            .sort((a, b) => b.omzet - a.omzet)
+            .slice(0, 10);
+
+        if (topParents.length === 0) {
+            console.warn('⚠️ No parent data for chart');
+            return;
+        }
+
+        const names = topParents.map(p => p.name.substring(0, 20));
+        const omzet = topParents.map(p => Math.round(p.omzet / 1000));
+        const count = topParents.map(p => p.count);
+
+        const ctx = document.getElementById('topParentChart');
+        if (!ctx) {
+            console.warn('⚠️ Canvas topParentChart not found');
+            return;
+        }
+
+        // ✅ FIX: Proper destroy check
+        if (window.topParentChart && typeof window.topParentChart.destroy === 'function') {
+            window.topParentChart.destroy();
+        }
+
+        window.topParentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: names,
+                datasets: [
+                    { label: 'Omzet (Rp Ribu)', data: omzet, backgroundColor: '#0d6efd', yAxisID: 'y' },
+                    { label: 'Anggota', data: count, backgroundColor: '#28a745', yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { type: 'category' },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Jumlah' }, grid: { drawOnChartArea: false } }
+                },
+                plugins: {
+                    legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } }
+                }
+            }
+        });
+
+        console.log('✅ Top Parent Chart rendered, count:', topParents.length);
+
+    } catch (error) {
+        console.error('❌ Error rendering Top Parent Chart:', error);
+    }
+}
+
 
 /**
  * Load data master ke table
  */
 async function loadDataMaster(page = 1) {
     try {
+        console.log('📋 Loading data master, page:', page);
         currentPageDataMaster = page;
-        // ✅ KIRIM PARAMETER SORT KE getDataMaster
+
         const result = await getDataMaster(page, dataMasterSortField, dataMasterSortAsc);
 
-        // Render table
+        // ✅ FIX - Pastikan table container VISIBLE sebelum set data
+        const tableBody = document.getElementById('data-master-table-body');
+        if (tableBody) {
+            tableBody.style.display = '';           // Remove display:none
+            tableBody.style.visibility = 'visible'; // Ensure visible
+            tableBody.style.opacity = '1';          // Ensure not transparent
+        }
+
+        if (!result || !result.data || result.data.length === 0) {
+            console.warn('⚠️ No data master found for page:', page);
+            document.getElementById('data-master-table-body').innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox"></i> Tidak ada data pelanggan
+                    </td>
+                </tr>
+            `;
+            document.getElementById('data-master-pagination').innerHTML = '';
+            document.getElementById('list-harian-pagination').innerHTML = '';
+            document.getElementById('rekap-pagination').innerHTML = '';
+            return;
+        }
+
+        console.log('✅ Data master loaded:', result.data.length, 'records');
+
         let html = '';
         result.data.forEach((item, index) => {
             const rowNum = (page - 1) * CONSTANTS.PAGE_SIZE + index + 1;
@@ -116,7 +380,6 @@ async function loadDataMaster(page = 1) {
       <td><small>${item.no_kjp}</small></td>
       <td><small>${formatNomor(item.no_ktp)}</small></td>
       <td><small>${formatNomor(item.no_kk)}</small></td>
-      <!-- ✅ NO. KK DITAMBAHKAN -->
       <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
       <td class="text-center">
         <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')">
@@ -128,25 +391,36 @@ async function loadDataMaster(page = 1) {
       </td>
     </tr>
 `;
-
         });
-
 
         document.getElementById('data-master-table-body').innerHTML = html;
 
-        // ✅ ADDED - Clear ALL pagination containers sebelum render
+        // =================================================================
+        // ✅ PATCH 2: SEMUA BLOK setTimeout() DI SINI DIHAPUS
+        // Karena fungsi ini sekarang HANYA dipanggil oleh tab listener
+        // saat tab sudah 100% aktif dan terlihat.
+        // =================================================================
+  
         document.getElementById('list-harian-pagination').innerHTML = '';
         document.getElementById('rekap-pagination').innerHTML = '';
 
         renderPagination(result, 'data-master-pagination', loadDataMaster);
-
-        // ✅ TAMBAHAN BARU - Render indikator sort panah
         renderDataMasterSortIndicator();
-
-        // ✅ Update UI panel (preserve global selection)
         updateBulkSelectPanelDataMaster();
+
+        console.log('✅ Data master rendered successfully!');
+
     } catch (error) {
-        console.error('Error loading data master:', error);
+        console.error('❌ Error loading data master:', error);
+        document.getElementById('data-master-table-body').innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center text-danger py-4">
+                    <i class="fas fa-exclamation-circle"></i> Error: ${error.message}
+                </td>
+            </tr>
+        `;
+        document.getElementById('data-master-pagination').innerHTML = '';
+        showAlert('error', 'Gagal memuat data pelanggan: ' + error.message);
     }
 }
 
@@ -251,6 +525,11 @@ async function handleSearchDataMaster(keyword) {
         });
 
         document.getElementById('data-master-table-body').innerHTML = html;
+
+        // =================================================================
+        // ✅ PATCH 3: SEMUA BLOK setTimeout() DI SINI JUGA DIHAPUS
+        // =================================================================
+        
         document.getElementById('data-master-pagination').innerHTML = '';
 
         // ✅ Update UI setelah search
@@ -494,58 +773,8 @@ async function bulkDeleteDataMaster() {
 }
 
 // ============================================
-// END - SORTING DATA MASTER
+// ✅ PATCH 4: FUNGSI DUPLIKAT DIHAPUS
 // ============================================
-
-/**
- * Handle search data master
- */
-async function handleSearchDataMaster(keyword) {
-    try {
-        if (!keyword || keyword.trim() === '') {
-            await loadDataMaster(1);
-            return;
-        }
-
-        const results = await searchDataMaster(keyword);
-
-        let html = '';
-        results.forEach((item, index) => {
-            // ✅ CEK apakah item ini sudah dipilih sebelumnya
-            const isChecked = selectedDataMasterIds.includes(item.id) ? 'checked' : '';
-
-            html += `
-        <tr>
-          <td>
-            <input type="checkbox" class="dm-checkbox" value="${item.id}" onchange="updateBulkSelectPanelDataMaster()" ${isChecked}>
-          </td>
-          <td>${index + 1}</td>
-          <td><strong>${item.nama_user}</strong></td>
-          <td>${item.parent_name}</td>
-          <td><small>${formatNomor(item.no_kjp)}</small></td>
-          <td><small>${formatNomor(item.no_ktp)}</small></td>
-          <td><small>${formatNomor(item.no_kk)}</small></td>
-          <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
-          <td class="text-center">
-            <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')" title="Edit">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="handleDeleteDataMaster('${item.id}')" title="Hapus">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-        });
-
-        document.getElementById('data-master-table-body').innerHTML = html;
-        document.getElementById('data-master-pagination').innerHTML = ''; // Hapus pagination saat search
-    } catch (error) {
-        console.error('Error searching data master:', error);
-    }
-}
-
-
 
 /**
  * Reset form data master (untuk add)
@@ -1353,8 +1582,7 @@ async function openAddTransaksiFromSelection() {
  * ========================================
  * Membuka modal form transaksi untuk 1 pelanggan dengan data pre-filled
  * Data pelanggan diambil dari database dan disimpan di form.dataset
- * 
- * @param {string} masterId - ID pelanggan dari data_master
+ * * @param {string} masterId - ID pelanggan dari data_master
  */
 async function openSingleTransaksiFromCheckbox(masterId) {
     try {
@@ -2288,7 +2516,7 @@ function openImportCSVModal() {
 }
 
 
-console.log('✅ app.js (FINAL PATCH KK) loaded successfully!');
+console.log('✅ app.js (v_FINAL_BERSIH) loaded successfully!');
 /**
  * View detail transaksi dalam modal (PATCH 13)
  */

@@ -2049,3 +2049,63 @@ body {
     thead th[onclick]:hover {
         background-color: rgba(13, 110, 253, 0.08) !important;
     }
+
+/* ============================================ */
+/* AGGRESSIVE FIX v3: Maximum Specificity */
+/* ============================================ */
+
+/* FORCE: Hide all non-active tabs */
+div.tab-pane:not(.show) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* FORCE: Show active tab only */
+div.tab-pane.show,
+div.tab-pane.show.fade {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: relative !important;
+    left: auto !important;
+    opacity: 1 !important;
+}
+
+/* Backup for .active class */
+div.tab-pane.active {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* Specific target for #data-master */
+#data-master.show,
+#data-master.show.fade {
+    display: block !important;
+    visibility: visible !important;
+}
+
+#data-master:not(.show) {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Table responsive within tab */
+#data-master .table-responsive {
+    display: block !important;
+    overflow-x: auto !important;
+}
+
+#data-master table {
+    display: table !important;
+}
+
+#data-master tbody {
+    display: table-row-group !important;
+}
+
+/* ============================================ */
