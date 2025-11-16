@@ -195,7 +195,6 @@ function renderTrendOmzetChart(data) {
             trenByDate[date].omzet += 20000;
             trenByDate[date].transaksi += 1;
         });
-
         const sortedDates = Object.keys(trenByDate).sort();
         const labels = sortedDates.map(d => new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
         const omzetData = sortedDates.map(d => Math.round(trenByDate[d].omzet / 1000));
@@ -250,32 +249,47 @@ function renderTrendOmzetChart(data) {
 
                 plugins: {
                     legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } },
-                    // ================================================================
-                    // ✅✅✅ INI ADALAH BAGIAN YANG DIPERBAIKI ✅✅✅
-                    // ================================================================
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                let label = context.dataset.label || '';
+                                const datasetLabel = context.dataset.label || '';
+                                const dataIndex = context.dataIndex;
 
-                                // Logika untuk chart GARIS (Line Chart)
-                                if (label.includes('Omzet')) {
-                                    // Ambil nilai dari Sumbu Y (misal: 9000) dan kalikan 1000
-                                    const rawValue = context.parsed.y * 1000;
-                                    // Format menjadi "9.000.000"
-                                    const formattedValue = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(rawValue);
-                                    return `Omzet: ${formattedValue}`;
+                                // Cek dataset mana yang sedang di-hover (Omzet atau Anggota)
+                                if (datasetLabel === 'Omzet (Rp Ribu)') {
+                                    // 1. Ambil Omzet (dari dataset 0)
+                                    const omzetValue = context.parsed.x * 1000; // Horizontal bar = 'x'
+                                    const formattedOmzet = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(omzetValue);
+
+                                    // 2. Ambil Transaksi (dari dataset 1)
+                                    const transaksiValue = context.chart.data.datasets[1].data[dataIndex];
+
+                                    // Return array, Chart.js akan render ini sebagai baris-baris
+                                    return [
+                                        `Omzet: ${formattedOmzet}`,
+                                        `Transaksi: ${transaksiValue}`
+                                    ];
                                 }
-                                if (label === 'Transaksi') {
-                                    return `Transaksi: ${context.parsed.y}`;
+
+                                if (datasetLabel === 'Anggota') {
+                                    // 1. Ambil Omzet (dari dataset 0)
+                                    const omzetValue = context.chart.data.datasets[0].data[dataIndex] * 1000;
+                                    const formattedOmzet = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(omzetValue);
+
+                                    // 2. Ambil Transaksi (dari dataset 1)
+                                    const transaksiValue = context.parsed.x; // Horizontal bar = 'x'
+
+                                    // Return array
+                                    return [
+                                        `Omzet: ${formattedOmzet}`,
+                                        `Transaksi: ${transaksiValue}`
+                                    ];
                                 }
-                                return label;
+
+                                return null;
                             }
                         }
                     }
-                    // ================================================================
-                    // ✅✅✅ AKHIR DARI BAGIAN YANG DIPERBAIKI ✅✅✅
-                    // ================================================================
                 }
             }
         });
@@ -393,21 +407,6 @@ function renderTopParentChart(data) {
                 }
             }
         });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         console.log('✅ Top Parent Chart rendered, count:', topParents.length);
 
