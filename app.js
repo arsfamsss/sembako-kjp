@@ -106,27 +106,29 @@ async function loadDataMaster(page = 1) {
         result.data.forEach((item, index) => {
             const rowNum = (page - 1) * CONSTANTS.PAGE_SIZE + index + 1;
             html += `
-        <tr>
-          <td>
-            <input type="checkbox" class="dm-checkbox" value="${item.id}" onchange="updateBulkSelectPanelDataMaster()">
-          </td>
-          <td>${rowNum}</td>
-          <td><strong>${item.nama_user}</strong></td>
-          <td>${item.parent_name}</td>
-          <td><small>${item.no_kjp}</small></td>
-          <td><small>${formatNomor(item.no_ktp)}</small></td>
-          <td><small>${formatNomor(item.no_kk)}</small></td>
-          <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
-          <td class="text-center">
-            <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="handleDeleteDataMaster('${item.id}')">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
+    <tr>
+      <td>
+        <input type="checkbox" class="dm-checkbox" value="${item.id}" onchange="updateBulkSelectPanelDataMaster()">
+      </td>
+      <td>${index + 1}</td>
+      <td><strong>${item.nama_user}</strong></td>
+      <td>${item.parent_name}</td>
+      <td><small>${item.no_kjp}</small></td>
+      <td><small>${formatNomor(item.no_ktp)}</small></td>
+      <td><small>${formatNomor(item.no_kk)}</small></td>
+      <!-- ✅ NO. KK DITAMBAHKAN -->
+      <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
+      <td class="text-center">
+        <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="handleDeleteDataMaster('${item.id}')">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>
+`;
+
         });
 
 
@@ -522,6 +524,7 @@ async function handleSearchDataMaster(keyword) {
           <td>${item.parent_name}</td>
           <td><small>${formatNomor(item.no_kjp)}</small></td>
           <td><small>${formatNomor(item.no_ktp)}</small></td>
+          <td><small>${formatNomor(item.no_kk)}</small></td>
           <td><small>${formatDateToDisplay(item.tgl_tambah)}</small></td>
           <td class="text-center">
             <button class="btn btn-sm btn-warning" onclick="editDataMaster('${item.id}')" title="Edit">
@@ -542,162 +545,6 @@ async function handleSearchDataMaster(keyword) {
     }
 }
 
-
-// ============================================
-// ✅ EXPORT DATA MASTER - FUNGSI BARU
-// ============================================
-
-/**
- * Export Data Master ke XLSX (semua kolom)
- */
-async function exportDataMasterXLSX() {
-    try {
-        // Ambil data yang dipilih (jika ada checkbox tercentang)
-        let dataToExport = [];
-
-        if (selectedDataMasterIds.length > 0) {
-            // Export hanya yang dipilih
-            showAlert('info', `Memproses ${selectedDataMasterIds.length} data yang dipilih...`);
-
-            for (const id of selectedDataMasterIds) {
-                const item = await getDataMasterById(id);
-                dataToExport.push(item);
-            }
-        } else {
-            // Export semua data
-            showAlert('info', 'Memproses semua data...');
-
-            // Ambil semua data dari database (tanpa pagination)
-            const { data } = await supabase
-                .from(CONSTANTS.TABLES.DATA_MASTER)
-                .select('*')
-                .order('nama_user', { ascending: true });
-
-            dataToExport = data || [];
-        }
-
-        if (dataToExport.length === 0) {
-            showAlert('warning', 'Tidak ada data untuk diexport');
-            return;
-        }
-
-        // Format data untuk Excel
-        const excelData = dataToExport.map((item, index) => ({
-            'No': index + 1,
-            'Nama User': item.nama_user,
-            'Parent Name': item.parent_name,
-            'No. KJP': item.no_kjp,
-            'No. KTP': item.no_ktp,
-            'No. KK': item.no_kk,
-            'Tanggal Tambah': formatDateToDisplay(item.tgl_tambah)
-        }));
-
-        // Buat workbook dan worksheet
-        const ws = XLSX.utils.json_to_sheet(excelData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Data Pelanggan');
-
-        // Set column widths
-        ws['!cols'] = [
-            { wch: 5 },  // No
-            { wch: 25 }, // Nama User
-            { wch: 25 }, // Parent Name
-            { wch: 18 }, // No. KJP
-            { wch: 18 }, // No. KTP
-            { wch: 18 }, // No. KK
-            { wch: 15 }  // Tanggal
-        ];
-
-        // Generate filename dengan timestamp
-        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const filename = `Data_Pelanggan_${timestamp}.xlsx`;
-
-        // Download file
-        XLSX.writeFile(wb, filename);
-
-        showAlert('success', `✅ File ${filename} berhasil didownload!`);
-
-    } catch (error) {
-        console.error('Error exporting XLSX:', error);
-        showAlert('error', 'Gagal export ke XLSX: ' + error.message);
-    }
-}
-
-/**
- * Export Data Master ke JSON (hanya No KJP, KTP, KK)
- */
-async function exportDataMasterJSON() {
-    try {
-        // Ambil data yang dipilih (jika ada checkbox tercentang)
-        let dataToExport = [];
-
-        if (selectedDataMasterIds.length > 0) {
-            // Export hanya yang dipilih
-            showAlert('info', `Memproses ${selectedDataMasterIds.length} data yang dipilih...`);
-
-            for (const id of selectedDataMasterIds) {
-                const item = await getDataMasterById(id);
-                dataToExport.push(item);
-            }
-        } else {
-            // Export semua data
-            showAlert('info', 'Memproses semua data...');
-
-            // Ambil semua data dari database (tanpa pagination)
-            const { data } = await supabase
-                .from(CONSTANTS.TABLES.DATA_MASTER)
-                .select('*')
-                .order('nama_user', { ascending: true });
-
-            dataToExport = data || [];
-        }
-
-        if (dataToExport.length === 0) {
-            showAlert('warning', 'Tidak ada data untuk diexport');
-            return;
-        }
-
-        // Format data JSON (hanya no_kjp, no_ktp, no_kk)
-        const jsonData = dataToExport.map(item => ({
-            no_kjp: item.no_kjp,
-            no_ktp: item.no_ktp,
-            no_kk: item.no_kk
-        }));
-
-        // Convert ke JSON string dengan pretty format
-        const jsonString = JSON.stringify(jsonData, null, 2);
-
-        // Buat Blob untuk download
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
-        // Generate filename dengan timestamp
-        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const filename = `Data_Pelanggan_Nomor_${timestamp}.json`;
-
-        // Create download link dan trigger download
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-
-        // Cleanup
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showAlert('success', `✅ File ${filename} berhasil didownload! (${jsonData.length} records)`);
-
-    } catch (error) {
-        console.error('Error exporting JSON:', error);
-        showAlert('error', 'Gagal export ke JSON: ' + error.message);
-    }
-}
-
-// ============================================
-// END - EXPORT DATA MASTER
-// ============================================
 
 
 /**
