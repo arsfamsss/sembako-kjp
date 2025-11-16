@@ -1,6 +1,7 @@
 // ============================================
 // app.js (v_FINAL_BERSIH)
 // Main Application Logic & Event Handlers
+// =PENTING: Ini adalah versi yang sudah di-patch
 // ============================================
 
 // Global State
@@ -195,7 +196,6 @@ function renderTrendOmzetChart(data) {
             trenByDate[date].omzet += 20000;
             trenByDate[date].transaksi += 1;
         });
-
         const sortedDates = Object.keys(trenByDate).sort();
         const labels = sortedDates.map(d => new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }));
         const omzetData = sortedDates.map(d => Math.round(trenByDate[d].omzet / 1000));
@@ -251,7 +251,7 @@ function renderTrendOmzetChart(data) {
                 plugins: {
                     legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } },
                     // ================================================================
-                    // ✅✅✅ INI ADALAH BAGIAN YANG DIPERBAIKI ✅✅✅
+                    // ✅✅✅ PATCH FIX TOOLTIP (GRAFIK TREN OMZET) ✅✅✅
                     // ================================================================
                     tooltip: {
                         callbacks: {
@@ -274,7 +274,7 @@ function renderTrendOmzetChart(data) {
                         }
                     }
                     // ================================================================
-                    // ✅✅✅ AKHIR DARI BAGIAN YANG DIPERBAIKI ✅✅✅
+                    // ✅✅✅ AKHIR DARI PATCH FIX TOOLTIP ✅✅✅
                     // ================================================================
                 }
             }
@@ -349,6 +349,7 @@ function renderTopParentChart(data) {
                 },
                 plugins: {
                     legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } },
+                    // KODE INI SUDAH BENAR UNTUK GRAFIK BAR (JANGAN DIUBAH)
                     tooltip: {
                         callbacks: {
                             label: function (context) {
@@ -393,21 +394,6 @@ function renderTopParentChart(data) {
                 }
             }
         });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         console.log('✅ Top Parent Chart rendered, count:', topParents.length);
 
@@ -829,34 +815,14 @@ function updateBulkSelectPanelDataMaster() {
     }
 }
 
-/**
- * Bulk delete Data Master
+// ================================================================
+// ❌❌❌ PATCH HAPUS MASSAL: FUNGSI USANG INI DIHAPUS ❌❌❌
+// ================================================================
+/*
+ * (Fungsi 'bulkDeleteDataMaster' yang lama ada di sini,
+ * sekarang sudah dihapus di versi baru ini)
  */
-async function bulkDeleteDataMaster() {
-    if (selectedDataMasterIds.length === 0) {
-        showAlert('warning', 'Tidak ada data yang dipilih');
-        return;
-    }
 
-    if (!confirm(`Yakin ingin menghapus ${selectedDataMasterIds.length} data pelanggan?`)) {
-        return;
-    }
-
-    try {
-        await bulkDeleteDataMasterByIds(selectedDataMasterIds);
-
-        // Clear selection
-        selectedDataMasterIds = [];
-
-        // Reload
-        await loadDataMaster(currentPageDataMaster);
-
-        showAlert('success', 'Data pelanggan berhasil dihapus!');
-    } catch (error) {
-        console.error('Error bulk deleting:', error);
-        showAlert('error', 'Gagal menghapus data pelanggan');
-    }
-}
 
 // ============================================
 // ✅ PATCH 4: FUNGSI DUPLIKAT DIHAPUS
@@ -1109,6 +1075,7 @@ function clearSelectAllDataMaster() {
 
 /**
  * Handle bulk delete data master (FIX 2.6)
+ * Ini adalah fungsi Hapus Massal yang BENAR, dipanggil oleh tombol.
  */
 async function handleBulkDeleteDataMaster() {
     try {
@@ -2683,3 +2650,94 @@ function openImportCSVModal() {
 // ============================================================
 // END OF IMPORT CSV FUNCTIONS - Details di data-master.js
 // ============================================================
+
+// ============================================================
+// ✅✅✅ PATCH FIX EXPORT (JSON & XLSX/CSV) ✅✅✅
+// ============================================================
+
+/**
+ * Helper function untuk trigger download file di browser
+ */
+function downloadFile(filename, content, mimeType) {
+    const a = document.createElement('a');
+    const blob = new Blob([content], { type: mimeType });
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+/**
+ * Export Data Master ke format JSON
+ * (Sesuai title di index.html, hanya No KJP, KTP, KK)
+ */
+async function exportDataMasterJSON() {
+    try {
+        showLoading('Exporting JSON...');
+        // 1. Ambil SEMUA data master dari Supabase
+        const { data, error } = await supabase
+            .from(CONSTANTS.TABLES.DATA_MASTER)
+            .select('no_kjp, no_ktp, no_kk') // Sesuai title di index.html
+            .order('nama_user', { ascending: true });
+
+        if (error) throw error;
+
+        // 2. Konversi ke JSON string
+        const jsonContent = JSON.stringify(data, null, 2);
+
+        // 3. Trigger download
+        downloadFile('data_master_kjp_ktp_kk.json', jsonContent, 'application/json');
+        hideLoading();
+        showAlert('success', `${data.length} data diekspor ke JSON.`);
+
+    } catch (error) {
+        hideLoading();
+        console.error('Error exporting JSON:', error);
+        showAlert('error', `Gagal export JSON: ${error.message}`);
+    }
+}
+
+/**
+ * Export Data Master ke format XLSX (sebagai CSV)
+ * File .csv ini dapat dibuka dengan sempurna oleh Excel.
+ */
+async function exportDataMasterXLSX() {
+    try {
+        showLoading('Exporting XLSX/CSV...');
+        // 1. Ambil SEMUA data master
+        const { data, error } = await supabase
+            .from(CONSTANTS.TABLES.DATA_MASTER)
+            .select('*') // Ambil semua kolom untuk export lengkap
+            .order('nama_user', { ascending: true });
+
+        if (error) throw error;
+
+        // 2. Buat header CSV
+        let csvContent = 'Nama User,Parent Name,No. KJP,No. KTP,No. KK,Tgl Tambah\n';
+
+        // 3. Tambahkan baris data
+        data.forEach(item => {
+            // Pastikan data bersih (tanpa koma yang merusak CSV)
+            const nama = `"${(item.nama_user || '').replace(/"/g, '""')}"`;
+            const parent = `"${(item.parent_name || '').replace(/"/g, '""')}"`;
+            const kjp = item.no_kjp || '';
+            const ktp = item.no_ktp || '';
+            const kk = item.no_kk || '';
+            const tgl = item.tgl_tambah || '';
+
+            csvContent += `${nama},${parent},${kjp},${ktp},${kk},${tgl}\n`;
+        });
+
+        // 4. Trigger download
+        // Kita gunakan ekstensi .csv agar Excel langsung mengenalinya
+        downloadFile('data_master_lengkap.csv', csvContent, 'text/csv;charset=utf-8;');
+        hideLoading();
+        showAlert('success', `${data.length} data diekspor. File akan disimpan sebagai .csv`);
+
+    } catch (error) {
+        hideLoading();
+        console.error('Error exporting XLSX/CSV:', error);
+        showAlert('error', `Gagal export XLSX: ${error.message}`);
+    }
+}
