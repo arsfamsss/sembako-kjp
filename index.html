@@ -124,10 +124,29 @@
                 </div>
 
                 <div class="row mb-3">
-                    <div class="col-12 text-end">
-                        <button class="btn btn-primary" onclick="openImportCSVModal()">
-                            <i class="fas fa-file-csv"></i> Import CSV Data Pelanggan
-                        </button>
+                    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                        <div>
+                            <button class="btn btn-primary" onclick="openImportCSVModal()">
+                                <i class="fas fa-file-csv"></i> Import CSV
+                            </button>
+                            <button class="btn btn-success ms-2" onclick="exportDataMasterXLSX()"
+                                title="Export data ke Excel (lengkap)">
+                                <i class="fas fa-file-excel"></i> Export XLSX
+                            </button>
+                            <button class="btn btn-info ms-2" onclick="exportDataMasterJSON()"
+                                title="Export No KJP, KTP, KK ke JSON">
+                                <i class="fas fa-file-code"></i> Export JSON
+                            </button>
+                        </div>
+
+                        <div>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#formDataMasterModal"
+                                onclick="resetFormDataMaster()">
+                                <i class="fas fa-plus"></i> Tambah Pelanggan
+                            </button>
+                        </div>
+
                     </div>
                 </div>
 
@@ -137,7 +156,6 @@
                             placeholder="Cari nama, KJP, KTP, atau KK..." oninput="handleSearchDataMaster(this.value)">
                     </div>
                 </div>
-
 
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -162,23 +180,8 @@
                             onclick="clearSelectAllDataMaster()" disabled style="display: none;">
                             <i class="fas fa-times"></i> Batal
                         </button>
-
-                        <button class="btn btn-success ms-2" onclick="exportDataMasterXLSX()"
-                            title="Export data ke Excel (lengkap)">
-                            <i class="fas fa-file-excel"></i> Export XLSX
-                        </button>
-                        <button class="btn btn-info ms-2" onclick="exportDataMasterJSON()"
-                            title="Export No KJP, KTP, KK ke JSON">
-                            <i class="fas fa-file-code"></i> Export JSON
-                        </button>
-
-                        <button class="btn btn-primary ms-2" data-bs-toggle="modal"
-                            data-bs-target="#formDataMasterModal" onclick="resetFormDataMaster()">
-                            <i class="fas fa-plus"></i> Tambah Pelanggan
-                        </button>
                     </div>
                 </div>
-
 
                 <div class="table-responsive">
                     <table class="table table-hover table-striped">
