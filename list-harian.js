@@ -98,7 +98,7 @@ async function getAllListHarian(filters = {}) {
 // ✅ DIPERBAIKI: Tambah parameter filters
 async function searchListHarian(keyword, filters = {}) {
     try {
-        console.log(`🔍 Searching list harian: ${keyword}`, filters);
+        console.log(`🔍 Searching list harian (nama/KJP): ${keyword}`, filters); // (Log diubah)
         if (!keyword || keyword.trim() === '') {
             return [];
         }
@@ -107,7 +107,8 @@ async function searchListHarian(keyword, filters = {}) {
         let query = supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*')
-            .ilike('nama_user', `%${keyword}%`);
+            // ✅ PATCH: Menggunakan .or() untuk mencari di NAMA atau NO KJP
+            .or(`nama_user.ilike.%${keyword}%,no_kjp.ilike.%${keyword}%`);
 
         // ✅ TAMBAHAN: Apply filters jika ada
         if (filters.status_order) {
