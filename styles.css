@@ -1918,12 +1918,61 @@ body {
         color: #667eea;
         font-weight: 700;
         font-size: 15px;
-        /* ✅ LEBIH BESAR: 14px → 15px */
-        background: rgba(102, 126, 234, 0.08);
-        padding: 14px 16px;
-        border-radius: 6px;
+        /* ... (style lainnya) ... */
         letter-spacing: 0.5px;
     }
+
+    /* --- PATCH BARU UNTUK TOTAL TRANSAKSI --- */
+
+    /* Baris Total Transaksi (agar tidak se-bold total hutang) */
+    .rekap-table-container .table tbody tr.rekap-trx-count-row {
+        background: #fdfdff;
+        /* Warna sedikit lebih polos */
+        border-top: 2px solid #ddd;
+        /* Samakan dengan border subtotal */
+        border-bottom: none;
+        /* Tidak ada border bawah, biar nempel ke total hutang */
+        font-weight: 500;
+    }
+
+    .rekap-table-container .table tbody tr.rekap-trx-count-row td {
+        padding-top: 10px;
+        padding-bottom: 2px;
+        /* Padding atas lebih besar, bawah lebih kecil */
+        color: #555;
+    }
+
+    /* Label Total Trx (Hapus panah '↳') */
+    .rekap-table-container .table tbody td.rekap-trx-label::before {
+        content: none;
+    }
+
+    /* Value Total Trx (tidak se-bold total hutang) */
+    .rekap-table-container .table tbody td.rekap-trx-value {
+        text-align: right !important;
+        color: #333;
+        /* Warna standar */
+        font-weight: 600;
+        font-size: 14px;
+        background: none;
+        /* Tanpa background box */
+        padding-right: 16px;
+        /* Samakan padding */
+    }
+
+    /* Adjust Total Hutang row agar nempel di bawahnya */
+    .rekap-table-container .table tbody tr.rekap-subtotal-row:not(.rekap-trx-count-row) {
+        border-top: 1px dashed #e0e0e0;
+        /* Garis pemisah tipis */
+    }
+
+    .rekap-table-container .table tbody tr.rekap-subtotal-row:not(.rekap-trx-count-row) td {
+        padding-top: 2px;
+        /* Padding atas lebih kecil */
+    }
+
+    /* --- AKHIR PATCH --- */
+
 
     /* Empty state */
     .rekap-table-container .table tbody tr.rekap-empty td {
@@ -2050,62 +2099,62 @@ body {
         background-color: rgba(13, 110, 253, 0.08) !important;
     }
 
-/* ============================================ */
-/* AGGRESSIVE FIX v3: Maximum Specificity */
-/* ============================================ */
+    /* ============================================ */
+    /* AGGRESSIVE FIX v3: Maximum Specificity */
+    /* ============================================ */
 
-/* FORCE: Hide all non-active tabs */
-div.tab-pane:not(.show) {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-    left: -9999px !important;
-}
+    /* FORCE: Hide all non-active tabs */
+    div.tab-pane:not(.show) {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
 
-/* FORCE: Show active tab only */
-div.tab-pane.show,
-div.tab-pane.show.fade {
-    display: block !important;
-    visibility: visible !important;
-    height: auto !important;
-    overflow: visible !important;
-    position: relative !important;
-    left: auto !important;
-    opacity: 1 !important;
-}
+    /* FORCE: Show active tab only */
+    div.tab-pane.show,
+    div.tab-pane.show.fade {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+        position: relative !important;
+        left: auto !important;
+        opacity: 1 !important;
+    }
 
-/* Backup for .active class */
-div.tab-pane.active {
-    display: block !important;
-    visibility: visible !important;
-}
+    /* Backup for .active class */
+    div.tab-pane.active {
+        display: block !important;
+        visibility: visible !important;
+    }
 
-/* Specific target for #data-master */
-#data-master.show,
-#data-master.show.fade {
-    display: block !important;
-    visibility: visible !important;
-}
+    /* Specific target for #data-master */
+    #data-master.show,
+    #data-master.show.fade {
+        display: block !important;
+        visibility: visible !important;
+    }
 
-#data-master:not(.show) {
-    display: none !important;
-    visibility: hidden !important;
-}
+    #data-master:not(.show) {
+        display: none !important;
+        visibility: hidden !important;
+    }
 
-/* Table responsive within tab */
-#data-master .table-responsive {
-    display: block !important;
-    overflow-x: auto !important;
-}
+    /* Table responsive within tab */
+    #data-master .table-responsive {
+        display: block !important;
+        overflow-x: auto !important;
+    }
 
-#data-master table {
-    display: table !important;
-}
+    #data-master table {
+        display: table !important;
+    }
 
-#data-master tbody {
-    display: table-row-group !important;
-}
+    #data-master tbody {
+        display: table-row-group !important;
+    }
 
-/* ============================================ */
+    /* ============================================ */

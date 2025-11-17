@@ -1978,6 +1978,19 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
             globalNo++;
         });
 
+        // 🟢 Row TOTAL TRANSAKSI per keluarga (BARU)
+        const trxCountRow = document.createElement('tr');
+        trxCountRow.className = 'rekap-subtotal-row rekap-trx-count-row'; // Tambah class baru
+        trxCountRow.innerHTML = `
+            <td colspan="4" class="rekap-subtotal-label rekap-trx-label">
+                Total Trx ${parentName}
+            </td>
+            <td class="rekap-subtotal-value rekap-trx-value">
+                ${transactions.length} Transaksi
+            </td>
+        `;
+        container.appendChild(trxCountRow);
+
         // 🟢 Row TOTAL HUTANG per keluarga - PROFESSIONAL STYLE
         const subtotalRow = document.createElement('tr');
         subtotalRow.className = 'rekap-subtotal-row';
