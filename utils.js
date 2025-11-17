@@ -400,6 +400,51 @@ function confirmDialog(message) {
 }
 
 /**
+ * ============================================
+ * PATCH 3: FUNGSI PENERJEMAH ERROR SUPABASE
+ * ============================================
+ */
+function parseSupabaseError(error) {
+    if (!error || !error.message) {
+        return ERROR_MESSAGES.UNKNOWN_ERROR;
+    }
+
+    const msg = error.message;
+
+    // Cek duplikasi Data Master
+    if (msg.includes('duplicate key') && msg.includes('data_master_no_kjp_key')) {
+        return ERROR_MESSAGES.KJP_DUPLICATE;
+    }
+    if (msg.includes('duplicate key') && msg.includes('data_master_nama_user_key')) {
+        return ERROR_MESSAGES.NAMA_DUPLICATE;
+    }
+
+    // Cek duplikasi List Harian (jika Anda menambah constraint unik di DB)
+    if (msg.includes('duplicate key') && msg.includes('list_harian_kjp_tgl_order_uniq')) {
+        return ERROR_MESSAGES.KJP_DUPLICATE_PER_DATE;
+    }
+
+    // Cek validasi RLS (Row Level Security) atau check constraints
+    if (msg.includes('check_kjp_length')) {
+        return ERROR_MESSAGES.KJP_FORMAT;
+    }
+    if (msg.includes('check_ktp_length')) {
+        return ERROR_MESSAGES.KTP_FORMAT;
+    }
+    if (msg.includes('check_kk_length')) {
+        return ERROR_MESSAGES.KK_FORMAT;
+    }
+
+    // Cek error jaringan
+    if (msg.includes('network error') || msg.includes('Failed to fetch')) {
+        return ERROR_MESSAGES.NETWORK_ERROR;
+    }
+
+    // Fallback ke pesan error standar (jika ada) atau pesan generik
+    return msg || ERROR_MESSAGES.UNKNOWN_ERROR;
+}
+
+/**
  * TAMBAHAN: Escape string untuk digunakan di dalam atribut JS (e.g. onclick)
  * FIX 4.4
  */

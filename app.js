@@ -738,7 +738,8 @@ async function handleSaveDataMaster() {
     } catch (error) {
         hideLoading();
         console.error('Error saving data master:', error);
-        showAlert('error', `Gagal menyimpan: ${error.message}`);
+        // ✅ GANTI BARIS INI
+        showAlert('error', parseSupabaseError(error));
     }
 }
 
@@ -1029,7 +1030,8 @@ async function handleSaveBulkTransaksi() {
     } catch (error) {
         hideLoading();
         console.error('Error saving bulk transaksi:', error);
-        showAlert('error', `Gagal: ${error.message}`);
+        // ✅ GANTI BARIS INI
+        showAlert('error', parseSupabaseError(error));
     }
 }
 
@@ -1803,7 +1805,8 @@ async function handleSaveListHarian() {
     } catch (error) {
         hideLoading();
         console.error('Error saving list harian:', error);
-        showAlert('error', `Gagal menyimpan: ${error.message}`);
+        // ✅ GANTI BARIS INI
+        showAlert('error', parseSupabaseError(error));
     }
 }
 
