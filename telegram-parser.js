@@ -156,9 +156,9 @@ async function findDataMasterByKJP(noKjp) {
     }
 }
 
-/**
- * Import data telegram - SANITIZE SEBELUM INSERT!
- */
+// ======================================================
+// AFTER (importTelegramData) - PATCHED
+// ======================================================
 async function importTelegramData(textContent) {
     try {
         showLoading('Memproses data telegram...');
@@ -173,38 +173,78 @@ async function importTelegramData(textContent) {
 
         console.log(`✅ Parsed ${parsedData.length} records from telegram`);
 
+        // ======================================================
+        // LANGKAH 1: Ambil data transaksi yang sudah ada
+        // ======================================================
+
+        // Ambil semua tanggal unik dari file telegram
+        const relevantDates = [...new Set(parsedData.map(p => p.tglOrder))];
+
+        showLoading('Memeriksa transaksi duplikat...');
+
+        const { data: existingTx, error: fetchError } = await supabase
+            .from(CONSTANTS.TABLES.LIST_HARIAN)
+            .select('no_kjp, tgl_order')
+            .in('tgl_order', relevantDates);
+
+        if (fetchError) {
+            hideLoading();
+            throw new Error('Gagal memeriksa transaksi: ' + fetchError.message);
+        }
+
+        // Buat Set untuk pencarian cepat (KJP|TANGGAL)
+        const existingTxSet = new Set(existingTx.map(tx => `${tx.no_kjp}|${tx.tgl_order}`));
+        console.log(`✅ Validasi: ${existingTxSet.size} transaksi sudah ada di DB pada tanggal terkait.`);
+
         const transactionsToInsert = [];
         const errors = [];
 
         showLoading(`Memproses 0/${parsedData.length} data...`);
 
+        // ======================================================
+        // LANGKAH 2: Proses data telegram
+        // ======================================================
         for (let i = 0; i < parsedData.length; i++) {
             const item = parsedData[i];
+            const rowNum = i + 1;
 
             if (i % 10 === 0) {
                 showLoading(`Memproses ${i}/${parsedData.length} data...`);
             }
 
             try {
+                // 1. Cek Data Master (Requirement 2 - sudah ada)
                 const { data: masterData, error } = await findDataMasterByKJP(item.noKjp);
 
                 if (error || !masterData) {
                     errors.push({
-                        row: i + 1,
-                        noKjp: item.noKjp,
-                        nama: item.nama,
-                        parent: item.parent,
-                        error: 'No KJP tidak ditemukan di database'
+                        row: rowNum, noKjp: item.noKjp, nama: item.nama,
+                        error: 'No KJP tidak ditemukan di Data Master'
                     });
-                    console.warn(`⚠️ Row ${i + 1}: No KJP ${item.noKjp} tidak ditemukan`);
+                    console.warn(`⚠️ Row ${rowNum}: No KJP ${item.noKjp} tidak ditemukan (SKIP)`);
                     continue;
                 }
 
-                // SANITIZE SEMUA NOMOR SEBELUM INSERT!
+                // Sanitasi nomor dari Data Master sebelum cek duplikat
+                const cleanKjp = cleanNumber(masterData.no_kjp);
+
+                // 2. Cek Duplikat Transaksi (Requirement 1)
+                const txKey = `${cleanKjp}|${item.tglOrder}`;
+
+                if (existingTxSet.has(txKey)) {
+                    errors.push({
+                        row: rowNum, noKjp: item.noKjp, nama: masterData.nama_user,
+                        error: `Duplikat: Transaksi KJP ini sudah ada di tgl ${item.tglOrder}`
+                    });
+                    console.warn(`⚠️ Row ${rowNum}: Transaksi ${txKey} sudah ada (SKIP)`);
+                    continue;
+                }
+
+                // Lolos semua cek, tambahkan ke daftar insert
                 transactionsToInsert.push({
                     id_master: masterData.id,
                     nama_user: masterData.nama_user,
-                    no_kjp: cleanNumber(masterData.no_kjp),
+                    no_kjp: cleanKjp, // Pakai KJP yang sudah bersih
                     no_ktp: cleanNumber(masterData.no_ktp),
                     no_kk: cleanNumber(masterData.no_kk),
                     parent_name: masterData.parent_name,
@@ -213,80 +253,67 @@ async function importTelegramData(textContent) {
                     status_order: item.statusOrder,
                     status_bayar: item.statusBayar,
                     catatan: `Import dari Telegram (${item.tglOrder})`,
-                    created_at: new Date().toISOString(),     // ← ADDED
-                    updated_at: new Date().toISOString()      // ← ADDED
-                    // Note: field 'no' akan di-handle oleh database (auto-increment atau sequence)
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 });
 
+                // Tambahkan ke Set agar tidak duplikat dari file Telegram itu sendiri
+                existingTxSet.add(txKey);
 
             } catch (err) {
-                errors.push({
-                    row: i + 1,
-                    noKjp: item.noKjp,
-                    nama: item.nama,
-                    parent: item.parent,
-                    error: err.message
-                });
-                console.error(`❌ Row ${i + 1} error:`, err.message);
+                errors.push({ row: rowNum, noKjp: item.noKjp, error: err.message });
+                console.error(`❌ Row ${rowNum} error:`, err.message);
             }
         }
 
         console.log(`📊 Ready to insert: ${transactionsToInsert.length} records`);
-        console.log(`⚠️ Errors: ${errors.length} records`);
+        console.log(`⚠️ Errors/Skipped: ${errors.length} records`);
 
+        // ======================================================
+        // LANGKAH 3: Bulk Insert data yang sudah bersih
+        // ======================================================
         if (transactionsToInsert.length > 0) {
             showLoading(`Menyimpan ${transactionsToInsert.length} transaksi...`);
 
-            // Log sample data sebelum insert untuk debugging
             console.log('📦 Sample data to insert:', JSON.stringify(transactionsToInsert[0], null, 2));
 
-            // ✅ FIXED: LISTHARIAN → LIST_HARIAN
             const { data, error } = await supabase
                 .from(CONSTANTS.TABLES.LIST_HARIAN)
                 .insert(transactionsToInsert);
 
             if (error) {
                 hideLoading();
+                // Jika masih error, ini masalah serius (bukan duplikat)
                 console.error('❌ Insert error:', error);
-                console.error('❌ Error details:', JSON.stringify(error, null, 2));
-
-                // Enhanced error message
-                let errorMsg = 'Gagal insert data: ';
-                if (error.message.includes('duplicate')) {
-                    errorMsg += 'Data duplikat ditemukan. ';
-                } else if (error.message.includes('foreign key')) {
-                    errorMsg += 'Data master tidak ditemukan. ';
-                } else if (error.message.includes('null value')) {
-                    errorMsg += 'Ada field required yang kosong. ';
-                }
-                errorMsg += error.message;
-
-                showAlert('error', errorMsg);
+                showAlert('error', `Gagal insert data: ${error.message}`);
                 return { success: false, message: error.message, failedRecords: errors };
             }
 
             console.log('✅ Bulk insert successful!');
         }
 
-
         hideLoading();
 
+        // ======================================================
+        // LANGKAH 4: Tampilkan Laporan Summary
+        // ======================================================
         const summary = `
         <div class="alert ${transactionsToInsert.length > 0 ? 'alert-success' : 'alert-warning'}">
             <strong>${transactionsToInsert.length > 0 ? '✅' : '⚠️'} Import Selesai!</strong><br>
             <hr>
-            <strong>Berhasil:</strong> ${transactionsToInsert.length} transaksi<br>
-            <strong>Gagal:</strong> ${errors.length} transaksi<br>
-            <strong>Total:</strong> ${parsedData.length} data
+            <strong>Berhasil disimpan:</strong> ${transactionsToInsert.length} transaksi<br>
+            <strong>Gagal / Dilewati:</strong> ${errors.length} transaksi<br>
+            <strong>Total diproses:</strong> ${parsedData.length} data
         </div>
         `;
 
-        showAlert(transactionsToInsert.length > 0 ? 'success' : 'warning', summary);
-
+        // Tampilkan detail error di console
         if (errors.length > 0) {
-            console.log('📋 List Error:');
+            console.warn('📋 Detail Data Gagal/Dilewati:');
             console.table(errors);
         }
+
+        showAlert(transactionsToInsert.length > 0 ? 'success' : 'warning', summary, 10000); // Tampilkan 10 detik
 
         if (transactionsToInsert.length > 0) {
             await loadListHarian(1);

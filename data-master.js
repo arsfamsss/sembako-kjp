@@ -420,11 +420,9 @@ function showCSVPreview(data) {
     previewDiv.style.display = 'block';
 }
 
-/**
- * Submit CSV Import (FULLY PATCHED)
- * - Validasi format KJP/KTP/KK
- * - Convert empty string ke NULL sebelum insert
- */
+// ======================================================
+// AFTER (submitCSVImport) - PATCHED
+// ======================================================
 async function submitCSVImport() {
     if (csvDataBuffer.length === 0) {
         showAlert('warning', 'Tidak ada data untuk diimport');
@@ -432,130 +430,140 @@ async function submitCSVImport() {
     }
 
     try {
-        showLoading(`Memproses ${csvDataBuffer.length} data...`);
+        showLoading(`Memvalidasi ${csvDataBuffer.length} data...`);
 
-        const errors = [];
-        const successData = [];
+        // ======================================================
+        // LANGKAH 1: Ambil semua data KJP dan Nama dari DB
+        // ======================================================
+        const { data: existingData, error: fetchError } = await supabase
+            .from(CONSTANTS.TABLES.DATA_MASTER)
+            .select('no_kjp, nama_user');
 
-        for (let i = 0; i < csvDataBuffer.length; i++) {
-            const item = csvDataBuffer[i];
-
-            // ✅ Validasi format NO KJP (12-18 digit)
-            const kjpValidation = validateKJP(item.no_kjp);
-            if (!kjpValidation.valid) {
-                errors.push({
-                    row: i + 1,
-                    nama: item.nama_user,
-                    no_kjp: item.no_kjp,
-                    error: kjpValidation.error
-                });
-                console.warn(`⚠️ Row ${i + 1}: ${kjpValidation.error}`);
-                continue;
-            }
-
-            // ✅ Validasi format NO KTP (16 digit, jika ada & tidak kosong)
-            if (item.no_ktp && item.no_ktp.trim()) {
-                const ktpValidation = validateKTP(item.no_ktp);
-                if (!ktpValidation.valid) {
-                    errors.push({
-                        row: i + 1,
-                        nama: item.nama_user,
-                        no_kjp: item.no_kjp,
-                        error: `NO KTP: ${ktpValidation.error}`
-                    });
-                    console.warn(`⚠️ Row ${i + 1}: ${ktpValidation.error}`);
-                    continue;
-                }
-            }
-
-            // ✅ Validasi format NO KK (16 digit, jika ada & tidak kosong)
-            if (item.no_kk && item.no_kk.trim()) {
-                const kkValidation = validateKK(item.no_kk);
-                if (!kkValidation.valid) {
-                    errors.push({
-                        row: i + 1,
-                        nama: item.nama_user,
-                        no_kjp: item.no_kjp,
-                        error: `NO KK: ${kkValidation.error}`
-                    });
-                    console.warn(`⚠️ Row ${i + 1}: ${kkValidation.error}`);
-                    continue;
-                }
-            }
-
-            // Cek duplikat NO KJP
-            const { data: existing, error } = await supabase
-                .from(CONSTANTS.TABLES.DATA_MASTER)
-                .select('id')
-                .eq('no_kjp', item.no_kjp)
-                .maybeSingle();
-
-            if (existing) {
-                errors.push({
-                    row: i + 1,
-                    nama: item.nama_user,
-                    no_kjp: item.no_kjp,
-                    error: 'NO KJP sudah terdaftar'
-                });
-                console.warn(`⚠️ Row ${i + 1}: NO KJP ${item.no_kjp} sudah ada`);
-            } else {
-                successData.push(item);
-            }
+        if (fetchError) {
+            hideLoading();
+            throw new Error('Gagal mengambil data master: ' + fetchError.message);
         }
 
-        // ✅ Insert yang success dengan convert empty string ke NULL
-        if (successData.length > 0) {
-            showLoading(`Menyimpan ${successData.length} data...`);
+        // Buat Set untuk pencarian cepat (O(1) lookup)
+        const existingKjps = new Set(existingData.map(item => item.no_kjp));
+        const existingNamas = new Set(existingData.map(item => item.nama_user));
+        console.log(`✅ Validasi: ${existingKjps.size} KJP dan ${existingNamas.size} Nama ada di DB.`);
 
-            // ✅ Convert empty string to NULL sebelum insert
-            const preparedData = successData.map(item => ({
+        const errors = [];
+        const dataToInsert = [];
+
+        // ======================================================
+        // LANGKAH 2: Proses CSV di memory (JavaScript)
+        // ======================================================
+        for (let i = 0; i < csvDataBuffer.length; i++) {
+            const item = { ...csvDataBuffer[i] }; // Salin item agar tidak mengubah buffer asli
+            const rowNum = i + 1;
+
+            // 1. Validasi Format (dari utils.js)
+            let validation = validateKJP(item.no_kjp);
+            if (!validation.valid) {
+                errors.push({ row: rowNum, nama: item.nama_user, error: `NO KJP: ${validation.error}` });
+                continue;
+            }
+            if (item.no_ktp && item.no_ktp.trim()) {
+                validation = validateKTP(item.no_ktp);
+                if (!validation.valid) {
+                    errors.push({ row: rowNum, nama: item.nama_user, error: `NO KTP: ${validation.error}` });
+                    continue;
+                }
+            }
+            if (item.no_kk && item.no_kk.trim()) {
+                validation = validateKK(item.no_kk);
+                if (!validation.valid) {
+                    errors.push({ row: rowNum, nama: item.nama_user, error: `NO KK: ${validation.error}` });
+                    continue;
+                }
+            }
+
+            // 2. Cek Duplikat KJP
+            if (existingKjps.has(item.no_kjp)) {
+                errors.push({ row: rowNum, nama: item.nama_user, error: `NO KJP (${item.no_kjp}) sudah terdaftar.` });
+                continue; // Skip
+            }
+
+            // 3. Cek Duplikat Nama (Sesuai permintaan Anda)
+            if (existingNamas.has(item.nama_user)) {
+                // Nama duplikat -> Ganti nama
+                const lastFourKjp = item.no_kjp.slice(-4);
+                const originalName = item.nama_user;
+                item.nama_user = `${item.nama_user} (${lastFourKjp})`;
+
+                // Cek lagi, apakah nama baru hasil rename juga duplikat?
+                if (existingNamas.has(item.nama_user)) {
+                    errors.push({ row: rowNum, nama: originalName, error: `Nama duplikat (${originalName}), dan nama baru (${item.nama_user}) juga sudah ada.` });
+                    continue; // Skip
+                }
+
+                console.log(`⚠️ Rename: "${originalName}" -> "${item.nama_user}"`);
+            }
+
+            // Lolos semua cek, tambahkan ke daftar insert
+            dataToInsert.push({
                 ...item,
-                no_ktp: item.no_ktp && item.no_ktp.trim() ? item.no_ktp : null,
-                no_kk: item.no_kk && item.no_kk.trim() ? item.no_kk : null,
-            }));
+                no_ktp: item.no_ktp && item.no_ktp.trim() ? item.no_ktp : null, // Siapkan untuk DB
+                no_kk: item.no_kk && item.no_kk.trim() ? item.no_kk : null,   // Siapkan untuk DB
+            });
 
-            const { data, error } = await supabase
+            // Tambahkan data baru ke Set agar tidak duplikat dari file CSV itu sendiri
+            existingKjps.add(item.no_kjp);
+            existingNamas.add(item.nama_user);
+        }
+
+        // ======================================================
+        // LANGKAH 3: Bulk Insert data yang sudah bersih
+        // ======================================================
+        if (dataToInsert.length > 0) {
+            showLoading(`Menyimpan ${dataToInsert.length} data baru...`);
+
+            const { error: insertError } = await supabase
                 .from(CONSTANTS.TABLES.DATA_MASTER)
-                .insert(preparedData);
+                .insert(dataToInsert);
 
-            if (error) {
+            if (insertError) {
                 hideLoading();
-                console.error('❌ Insert error:', error);
-                showAlert('error', 'Gagal insert data: ' + error.message);
+                // Jika masih error di sini, berarti ada masalah lain (bukan duplikat)
+                console.error('❌ Insert error:', insertError);
+                showAlert('error', 'Gagal insert data: ' + insertError.message);
                 return;
             }
         }
 
         hideLoading();
 
-        // Show Summary
+        // ======================================================
+        // LANGKAH 4: Tampilkan Laporan Summary
+        // ======================================================
         const summary = `
             <div>
                 <strong>✅ Import CSV Selesai!</strong>
                 <hr>
-                <strong>Berhasil:</strong> ${successData.length} data<br>
-                <strong>Gagal:</strong> ${errors.length} data<br>
-                <strong>Total:</strong> ${csvDataBuffer.length} data
+                <strong>Berhasil disimpan:</strong> ${dataToInsert.length} data<br>
+                <strong>Gagal / Dilewati:</strong> ${errors.length} data<br>
+                <strong>Total diproses:</strong> ${csvDataBuffer.length} data
             </div>
         `;
 
-        showAlert(successData.length > 0 ? 'success' : 'warning', summary);
-
+        // Tampilkan detail error di console
         if (errors.length > 0) {
-            console.log('📋 Detail Errors:');
+            console.warn('📋 Detail Data Gagal/Dilewati:');
             console.table(errors);
         }
 
-        // Tutup modal & refresh table
+        showAlert(dataToInsert.length > 0 ? 'success' : 'warning', summary, 10000); // Tampilkan 10 detik
+
         const modalElement = document.getElementById('importCSVModal');
         const modal = bootstrap.Modal.getInstance(modalElement);
         if (modal) modal.hide();
 
-        if (successData.length > 0) {
-            await loadDataMaster(1);
+        if (dataToInsert.length > 0) {
+            await loadDataMaster(1); // Refresh tabel
         }
 
-        // Reset buffer
         csvDataBuffer = [];
 
     } catch (error) {
