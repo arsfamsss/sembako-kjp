@@ -683,7 +683,8 @@ async function handleSaveDataMaster() {
             no_ktp: document.getElementById('no_ktp').value,
             no_kk: document.getElementById('no_kk').value,
             tgl_tambah: document.getElementById('tgl_tambah').value,
-            parent_name: document.getElementById('parent_name').value.trim() || extractParentName(document.getElementById('nama_user').value.trim()),
+            // --- BARIS INI DIPERBAIKI ---
+            parent_name: extractParentName(document.getElementById('nama_user').value.trim()),
         };
 
         // --- VALIDASI INPUT (FIX 2.4, 5.1) ---
@@ -721,19 +722,62 @@ async function handleSaveDataMaster() {
 
         hideLoading();
 
+        // ======================================================
+        // AFTER (PATCHED)
+        // ======================================================
         // --- Simpan Data ---
         let successData;
         if (id) {
+            // 1. Update data master (induk)
             successData = await updateDataMaster(id, formData);
+
+            // 2. PATCH: Cascade update to list_harian (anak)
+            if (successData) {
+                console.log(`🔄 Mensinkronkan transaksi lama untuk id_master: ${id}`);
+                showLoading('Mensinkronkan data transaksi...');
+
+                // Ambil KJP/KTP/KK yang sudah bersih dari utils.js
+                const cleanKjp = sanitizeNumber(formData.no_kjp);
+                const cleanKtp = sanitizeNumber(formData.no_ktp);
+                const cleanKk = sanitizeNumber(formData.no_kk);
+
+                const { error: cascadeError } = await supabase
+                    .from(CONSTANTS.TABLES.LIST_HARIAN)
+                    .update({
+                        nama_user: formData.nama_user,
+                        parent_name: formData.parent_name,
+                        no_kjp: cleanKjp,
+                        no_ktp: cleanKtp,
+                        no_kk: cleanKk
+                    })
+                    .eq('id_master', id); // <-- Kunci utamanya: update semua yg id_master-nya sama
+
+                hideLoading();
+
+                if (cascadeError) {
+                    // Jangan hentikan proses, tapi beri peringatan
+                    console.error('❌ Error cascading update to list_harian:', cascadeError.message);
+                    showAlert('warning', 'Data pelanggan disimpan, tapi gagal sinkronisasi transaksi lama.');
+                }
+            }
         } else {
             successData = await addDataMaster(formData);
         }
 
+        // ======================================================
+        // AFTER (PATCHED)
+        // ======================================================
         if (successData) {
             bootstrap.Modal.getInstance(document.getElementById('formDataMasterModal')).hide();
             await loadDataMaster(1); // Muat ulang dari halaman 1
+
+            // PATCH: Wajib reload rekap dan dashboard
+            await loadRekap(1);
+            await loadDashboard();
+
             showAlert('success', id ? SUCCESS_MESSAGES.DATA_UPDATED : SUCCESS_MESSAGES.DATA_CREATED);
         }
+
 
     } catch (error) {
         hideLoading();
