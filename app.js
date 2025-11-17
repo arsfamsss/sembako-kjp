@@ -291,6 +291,13 @@ function renderTrendOmzetChart(data) {
  * Grafik 3: Top 10 Keluarga (Bar Horizontal)
  * Omzet & Jumlah Anggota grouped by parent_name
  */
+// ======================================================
+// GANTI SELURUH FUNGSI INI
+// ======================================================
+/**
+ * Grafik 3: Top 10 Keluarga (Bar Horizontal)
+ * Omzet & Jumlah Anggota grouped by parent_name
+ */
 function renderTopParentChart(data) {
     try {
         const parentStats = {};
@@ -315,8 +322,12 @@ function renderTopParentChart(data) {
             return;
         }
 
+        // ===================================
+        // PATCH BAGIAN OLAH DATA
+        // ===================================
         const names = topParents.map(p => p.name.substring(0, 20));
-        const omzet = topParents.map(p => Math.round(p.omzet / 1000));
+        // ✅ FIX: Gunakan omzet penuh, jangan dibagi 1000
+        const omzet = topParents.map(p => p.omzet);
         const count = topParents.map(p => p.count);
 
         const ctx = document.getElementById('topParentChart');
@@ -330,64 +341,89 @@ function renderTopParentChart(data) {
             window.topParentChart.destroy();
         }
 
+        // ===================================
+        // PATCH BAGIAN OPSI CHART.JS
+        // ===================================
         window.topParentChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: names,
                 datasets: [
-                    { label: 'Omzet (Rp Ribu)', data: omzet, backgroundColor: '#0d6efd', yAxisID: 'y' },
-                    { label: 'Anggota', data: count, backgroundColor: '#28a745', yAxisID: 'y1' }
+                    {
+                        // ✅ FIX 1: Ubah label (hapus 'Ribu')
+                        label: 'Omzet (Rp)',
+                        data: omzet,
+                        backgroundColor: '#0d6efd',
+                        // ✅ FIX 2: Tentukan axis 'x' untuk nilai (bukan 'y')
+                        xAxisID: 'x'
+                    },
+                    {
+                        // ✅ FIX 3: Ubah label 'Anggota' jadi 'Transaksi'
+                        label: 'Transaksi',
+                        data: count,
+                        backgroundColor: '#28a745',
+                        // ✅ FIX 4: Tentukan axis 'x1' untuk nilai
+                        xAxisID: 'x1'
+                    }
                 ]
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                // ✅ FIX 5: Definisikan ulang SEMUA scales
                 scales: {
-                    y: { type: 'category' },
-                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Jumlah' }, grid: { drawOnChartArea: false } }
+                    // Axis Kategori (Nama Pelanggan) - Vertikal
+                    y: {
+                        type: 'category',
+                        ticks: { font: { size: 12 } }
+                    },
+                    // Axis Nilai 1 (Omzet) - Bawah
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: { display: true, text: 'Total Omzet (Rp)', font: { size: 14 } },
+                        ticks: {
+                            font: { size: 12 },
+                            // Format angka di axis bawah (misal: 1.000.000)
+                            callback: function (value) {
+                                return new Intl.NumberFormat('id-ID').format(value);
+                            }
+                        }
+                    },
+                    // Axis Nilai 2 (Transaksi) - Atas
+                    x1: {
+                        type: 'linear',
+                        position: 'top', // Pindahkan dari 'right' ke 'top'
+                        title: { display: true, text: 'Jumlah Transaksi', font: { size: 14 } },
+                        ticks: {
+                            font: { size: 12 },
+                            // Pastikan hanya angka bulat (tidak ada 0.8, 0.9)
+                            precision: 0
+                        },
+                        grid: { drawOnChartArea: false } // Agar grid tidak tumpang tindih
+                    }
                 },
                 plugins: {
                     legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } },
-                    // KODE INI SUDAH BENAR UNTUK GRAFIK BAR (JANGAN DIUBAH)
+                    // ✅ FIX 6: Sederhanakan Tooltip
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                const datasetLabel = context.dataset.label || '';
                                 const dataIndex = context.dataIndex;
 
-                                // Cek dataset mana yang sedang di-hover (Omzet atau Anggota)
-                                if (datasetLabel === 'Omzet (Rp Ribu)') {
-                                    // 1. Ambil Omzet (dari dataset 0)
-                                    const omzetValue = context.parsed.x * 1000; // Horizontal bar = 'x'
-                                    const formattedOmzet = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(omzetValue);
+                                // Ambil Omzet (dari dataset 0)
+                                const omzetValue = context.chart.data.datasets[0].data[dataIndex];
+                                const formattedOmzet = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(omzetValue);
 
-                                    // 2. Ambil Transaksi (dari dataset 1)
-                                    const transaksiValue = context.chart.data.datasets[1].data[dataIndex];
+                                // Ambil Transaksi (dari dataset 1)
+                                const transaksiValue = context.chart.data.datasets[1].data[dataIndex];
 
-                                    // Return array, Chart.js akan render ini sebagai baris-baris
-                                    return [
-                                        `Omzet: ${formattedOmzet}`,
-                                        `Transaksi: ${transaksiValue}`
-                                    ];
-                                }
-
-                                if (datasetLabel === 'Anggota') {
-                                    // 1. Ambil Omzet (dari dataset 0)
-                                    const omzetValue = context.chart.data.datasets[0].data[dataIndex] * 1000;
-                                    const formattedOmzet = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(omzetValue);
-
-                                    // 2. Ambil Transaksi (dari dataset 1)
-                                    const transaksiValue = context.parsed.x; // Horizontal bar = 'x'
-
-                                    // Return array
-                                    return [
-                                        `Omzet: ${formattedOmzet}`,
-                                        `Transaksi: ${transaksiValue}`
-                                    ];
-                                }
-
-                                return null;
+                                // Tampilkan keduanya
+                                return [
+                                    `Omzet: ${formattedOmzet}`,
+                                    `Transaksi: ${transaksiValue}`
+                                ];
                             }
                         }
                     }
