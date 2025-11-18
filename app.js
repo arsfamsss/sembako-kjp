@@ -1906,6 +1906,8 @@ async function handleDeleteListHarian(id) {
     }
 }
 
+// File: app.js
+
 /**
  * Export List Harian ke CSV (FIX 4.5)
  */
@@ -1928,15 +1930,18 @@ async function exportListHarian() {
             return showAlert('warning', 'Tidak ada data untuk diexport');
         }
 
-        let csv = 'No,Nama,Parent Name,No. KJP,Tgl Order,Tgl Ambil,Status Order,Status Bayar,Catatan\n';
+        // PATCH: Header diubah sesuai permintaan
+        let csv = 'No,Nama,No. KJP,No. KTP,No. KK,Status Order\n';
 
         data.forEach((item, index) => {
-            // Tambah parent_name ke CSV
-            csv += `${index + 1},"${item.nama_user || ''}","${item.parent_name || ''}","${item.no_kjp || ''}","${item.tgl_order || ''}","${item.tgl_ambil || ''}","${item.status_order || ''}","${item.status_bayar || ''}","${item.catatan || ''}"\n`;
+            // PATCH: Kolom data disesuaikan dengan header baru
+            // (no_ktp dan no_kk sudah tersedia dari getAllListHarian)
+            csv += `${index + 1},"${item.nama_user || ''}","${item.no_kjp || ''}","${item.no_ktp || ''}","${item.no_kk || ''}","${item.status_order || ''}"\n`;
         });
 
         const element = document.createElement('a');
         element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv));
+        // Nama file tetap sama
         element.setAttribute('download', `transaksi_harian_${new Date().toISOString().split('T')[0]}.csv`);
         element.style.display = 'none';
         document.body.appendChild(element);
