@@ -491,7 +491,29 @@ async function submitCSVImport() {
                 // Nama duplikat -> Ganti nama
                 const lastFourKjp = item.no_kjp.slice(-4);
                 const originalName = item.nama_user;
-                item.nama_user = `${item.nama_user} (${lastFourKjp})`;
+
+                // ✅ PATCH BARU: Parsing nama untuk memastikan format spasi
+                const lastParenOpenIndex = originalName.lastIndexOf('(');
+                const lastParenCloseIndex = originalName.lastIndexOf(')');
+
+                // Cek apakah formatnya (...) valid
+                if (lastParenCloseIndex > -1 && lastParenOpenIndex > -1 && lastParenOpenIndex < lastParenCloseIndex) {
+                    // Kasus 1: Nama sudah punya kurung, e.g., "Azzura (Ainun)" atau "Azzura(Ainun)"
+
+                    // Ambil nama dasar, trim spasi: "Azzura"
+                    const baseName = originalName.substring(0, lastParenOpenIndex).trim();
+
+                    // Ambil info di dalam kurung, trim spasi: "Ainun"
+                    const insideInfo = originalName.substring(lastParenOpenIndex + 1, lastParenCloseIndex).trim();
+
+                    // Gabungkan dengan format yang BENAR (spasi dijamin)
+                    item.nama_user = `${baseName} (${insideInfo} ${lastFourKjp})`;
+
+                } else {
+                    // Kasus 2: Nama tidak punya kurung, e.g., "Budi"
+                    // Tambahkan di akhir (spasi dijamin)
+                    item.nama_user = `${originalName} (${lastFourKjp})`;
+                }
 
                 // Cek lagi, apakah nama baru hasil rename juga duplikat?
                 if (existingNamas.has(item.nama_user)) {
