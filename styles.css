@@ -1,3 +1,6 @@
+/* IMPORT FONT POPPINS (Modern & Cantik) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* ============================================
    styles.css - VERSI BERSIH & DIOPTIMALKAN
    Sistem Pendaftaran Sembako KJP
@@ -54,23 +57,34 @@
 
 html,
 body {
-    /* Font Sistem yang lebih tebal & tajam */
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: var(--color-background);
-    color: var(--color-text);
+    /* Gunakan Font Poppins */
+    font-family: 'Poppins', sans-serif;
+    /* ... background code (biarkan yang gradasi tadi) ... */
+
+    /* UKURAN: Naik sedikit biar lega */
+    font-size: 15.5px;
+
+    /* KETEBALAN: 500 adalah Medium (Terlihat Bold tapi tidak kasar) */
+    font-weight: 500;
+
+    color: #2d3748;
+    /* Warna teks abu gelap modern (bukan hitam pekat) */
     min-height: 100vh;
     margin: 0;
     padding: 0;
-    font-size: 1rem;
-    /* 16px (Ukuran asli/lama) */
-    line-height: 1.5;
+    line-height: 1.6;
+    /* Jarak antar baris sedikit direnggangkan */
 }
 
 /* 3. NAVBAR STYLES (OLD) */
 .navbar {
     background-color: #0d6efd !important;
-    /* Pastikan Biru Solid */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+    /* Shadow biru halus yang lebih modern */
+    border-bottom-left-radius: var(--radius-lg);
+    /* Radius bawah kiri */
+    border-bottom-right-radius: var(--radius-lg);
+    /* Radius bawah kanan */
     border-bottom: none;
     /* Hapus border tebal bawah */
     padding: 1rem 1.5rem;
@@ -82,15 +96,20 @@ body {
 }
 
 .navbar-brand {
-    font-size: 1.25rem;
+    font-size: 1.4rem;
+    /* Lebih besar */
     font-weight: 700;
-    /* Lebih Tebal */
+    /* Bold kuat */
+    letter-spacing: 0.5px;
+    /* Sedikit renggang biar elegan */
     text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     color: #fff;
     text-decoration: none;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* Sedikit bayangan teks */
 }
 
 .navbar-brand i {
@@ -120,17 +139,19 @@ body {
 
 .nav-tabs {
     background-color: var(--color-surface);
-    border-radius: var(--radius-base) var(--radius-base) 0 0;
+    border-radius: var(--radius-lg);
+    /* Gunakan radius lebih besar */
     padding: 0;
-    /* Padding dihapus agar mentok pinggir */
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    /* Shadow lebih menonjol & halus */
     margin-bottom: 32px;
     display: flex;
     width: 100%;
-    /* Paksa lebar 100% container */
     justify-content: center;
-    /* Konten di tengah */
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: none;
+    /* Hapus border bawah agar terlihat clean */
+    overflow: hidden;
+    /* Pastikan isi tidak keluar dari radius */
 }
 
 /* TAMBAHAN BARU: Agar setiap menu membagi rata lebar layar */
@@ -143,7 +164,11 @@ body {
 
 .nav-link {
     color: var(--color-text-secondary);
+    font-size: 15px;
+    /* Ukuran pas */
     font-weight: 600;
+    /* Semi-Bold */
+    letter-spacing: 0.3px;
     /* Sedikit ditebalkan */
     border: none;
     border-radius: var(--radius-base) var(--radius-base) 0 0;
@@ -162,9 +187,23 @@ body {
     background: transparent;
 }
 
-.nav-link:hover {
+/* Efek Hover Modern */
+.nav-link:hover:not(.active) {
+    background-color: #f1f3f5;
+    /* Warna hover lebih soft */
     color: var(--color-primary);
-    background-color: rgba(94, 82, 64, 0.12);
+    transform: translateY(-2px);
+    /* Efek naik sedikit */
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Tab Aktif dengan Radius */
+.nav-link.active {
+    color: #fff;
+    background-color: var(--color-primary);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+    /* Shadow ke dalam untuk kedalaman */
 }
 
 .nav-link.active {
@@ -175,9 +214,11 @@ body {
 /* 5. CARDS */
 .card {
     background-color: var(--color-surface);
-    border: 1px solid var(--color-card-border);
+    border: none;
+    /* Hapus border garis */
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    /* Modern Shadow */
     transition: var(--transition);
     overflow: hidden;
     margin-bottom: 16px;
@@ -333,32 +374,64 @@ body {
     border-bottom: 2px solid #dee2e6;
 }
 
-/* HEADER TABEL (Tetap Bold) */
+/* ============================================
+   PATCH UPDATE: TABEL LEBIH TEGAS & JELAS
+   ============================================ */
+
+/* HEADER TABEL: Background Abu, Teks Hitam Pekat, Besar */
 .table thead th {
-    padding: 12px;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    /* Header Tebal */
-    text-align: left;
-    vertical-align: bottom;
-    border-bottom: 2px solid #dee2e6;
+    background-color: #e9ecef !important;
+    /* Abu sedikit lebih gelap biar kontras */
+    color: #000000 !important;
+    /* HITAM PEKAT */
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 700 !important;
+    /* BOLD KUAT */
+    font-size: 15px !important;
+    /* Ukuran header */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #000 !important;
+    /* Garis bawah hitam tegas */
+    padding: 16px !important;
+    vertical-align: middle;
 }
 
-/* ISI TABEL (No, Nama, dll) - PAKSA TIDAK BOLD */
-/* Kita targetkan 'td' DAN 'th' di dalam 'tbody' */
+/* ISI TABEL: Font Lebih Besar & Semi-Bold (Agar terasa bedanya) */
 .table tbody td,
 .table tbody th {
-    padding: 12px;
+    padding: 16px 14px !important;
+    /* Spasi lega */
     vertical-align: middle;
     border-bottom: 1px solid #dee2e6;
 
-    /* Font Setting */
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+    /* Font Setting AGAR TERLIHAT BEDA */
+    font-family: 'Poppins', sans-serif !important;
     font-size: 16px !important;
-    font-weight: 400 !important;
-    /* Paksa Normal (Matikan Bold) */
-    color: #212529;
+    /* SAYA NAIKKAN KE 16PX */
+    font-weight: 600 !important;
+    /* SEMI-BOLD (Lebih tebal dari sebelumnya) */
+    color: #212529 !important;
+    /* Hampir hitam */
+    line-height: 1.5;
+}
+
+/* Pastikan tidak ada elemen di dalam tabel yang menimpa settingan ini */
+.table tbody td span,
+.table tbody td a,
+.table tbody td div {
+    font-weight: 600 !important;
+    font-size: 16px !important;
+}
+
+/* SOLUSI KHUSUS: Reset tag bold bawaan agar seragam */
+.table tbody td b,
+.table tbody td strong,
+.table tbody th b,
+.table tbody th strong {
+    font-weight: 600 !important;
+    /* Sedikit lebih tebal dari teks biasa (500) */
+    color: #000;
 }
 
 /* SOLUSI KHUSUS: Paksa teks di dalam link/span/bold tag menjadi normal */
@@ -745,4 +818,165 @@ div.tab-pane.show {
         border: 1px solid #ddd;
         box-shadow: none;
     }
+}
+
+/* ============================================================
+   PATCH FINAL: PERBAIKAN REKAP & KOLOM NAMA
+   ============================================================ */
+
+/* 1. FIX KOLOM NAMA (DATA PELANGGAN) 
+   Memaksa tag <strong> (bold) agar mengikuti Font Poppins & Ukuran Baru */
+.table tbody td strong,
+.table tbody td b {
+    font-family: 'Poppins', sans-serif !important;
+    /* Wajib Poppins */
+    font-size: 16px !important;
+    /* Samakan ukurannya */
+    font-weight: 700 !important;
+    /* Extra Bold biar lebih jelas dari yg lain */
+    color: #000 !important;
+    /* Hitam Pekat */
+    letter-spacing: 0.5px;
+}
+
+/* 2. FIX TAB REKAP BELUM LUNAS (MENIMPA KODE LAMA) */
+/* Kita pakai selektor panjang biar menang dari kode lama */
+.rekap-table-container .table tbody td,
+.rekap-table-container .table tbody th {
+    font-family: 'Poppins', sans-serif !important;
+    /* Ganti System UI ke Poppins */
+    font-size: 16px !important;
+    /* Perbesar ukuran */
+    font-weight: 600 !important;
+    /* Tebalkan (Semi-Bold) */
+    color: #212529 !important;
+    /* Warna Teks */
+    padding: 16px !important;
+    /* Samakan spasi */
+    vertical-align: middle !important;
+}
+
+/* 3. FIX HEADER TABEL REKAP (Biar sama dengan tabel lain) */
+.rekap-table-container .table thead th {
+    background-color: #e9ecef !important;
+    color: #000 !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    padding: 16px !important;
+    border-bottom: 2px solid #000 !important;
+}
+
+/* 4. KHUSUS KOLOM NOMINAL (ANGKA UANG) DI REKAP */
+/* Biar angka uang tetap tebal tapi fontnya Poppins */
+.rekap-table-container .table tbody td:nth-child(5),
+.rekap-subtotal-value {
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 700 !important;
+    /* Lebih tebal untuk uang */
+    font-size: 16px !important;
+}
+
+/* ============================================================
+   PATCH FINAL V2: PENYESUAIAN FONT NAMA & REKAP
+   ============================================================ */
+
+/* 1. DATA PELANGGAN: NAMA LEBIH MANIS (TIDAK TERLALU TEBAL) */
+/* Mengganti settingan strong/bold agar tidak terlalu nge-blok */
+.table tbody td strong,
+.table tbody td b {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 15px !important;
+    /* Turunkan dari 16px ke 15px (lebih pas) */
+    font-weight: 600 !important;
+    /* Turunkan dari 700 (Bold) ke 600 (Semi-Bold) */
+    color: #2d3748 !important;
+    /* Ganti Hitam Pekat (#000) jadi Abu Gelap Modern */
+    letter-spacing: 0.3px;
+}
+
+/* 2. TAB REKAP: PAKSA KOLOM NAMA BERUBAH */
+/* Kita targetkan spesifik 'td:nth-child(2)' karena ini kolom Nama di Rekap */
+.rekap-table-container .table tbody td:nth-child(2) {
+    font-family: 'Poppins', sans-serif !important;
+    /* Paksa Font Baru */
+    font-size: 15px !important;
+    /* Samakan ukurannya */
+    font-weight: 600 !important;
+    /* Samakan ketebalannya */
+    color: #2d3748 !important;
+    /* Samakan warnanya */
+    padding: 16px !important;
+}
+
+/* 3. HEADER TABEL (SEMUA TAB): RAPIKAN SEDIKIT */
+.table thead th,
+.rekap-table-container .table thead th {
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 700 !important;
+    /* Header tetap Bold */
+    font-size: 14px !important;
+    /* Ukuran header dipaskan */
+    color: #495057 !important;
+    /* Abu gelap (bukan hitam pekat) */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #dee2e6 !important;
+    /* Garis bawah abu, bukan hitam */
+}
+
+/* ============================================================
+   PATCH FINAL V3: KHUSUS BARIS TOTAL (REKAP)
+   ============================================================ */
+
+/* 1. STYLE UNTUK LABEL ("Total Trx...", "Total Hutang...") */
+.rekap-table-container .table tbody td.rekap-subtotal-label {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 16px !important;
+    /* Lebih besar dari isi tabel biasa (15px) */
+    font-weight: 700 !important;
+    /* Bold */
+    color: #495057 !important;
+    /* Abu gelap */
+    text-align: right !important;
+    /* Rata kanan */
+    padding: 18px 16px !important;
+    /* Spasi sedikit lebih lega */
+    background-color: #fff !important;
+}
+
+/* 2. STYLE UNTUK NILAI TOTAL TRX (Angka Jumlah Transaksi) */
+.rekap-table-container .table tbody td.rekap-trx-value {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 16px !important;
+    /* Sama besarnya dengan label */
+    font-weight: 700 !important;
+    /* Bold */
+    color: #2d3748 !important;
+    /* Hitam/Abu gelap (Bukan Merah) */
+    text-align: right !important;
+    padding: 18px 16px !important;
+}
+
+/* 3. STYLE UNTUK NILAI TOTAL HUTANG (Angka Uang - Rp ...) */
+/* Ini yang kita buat MERAH dan PALING BESAR */
+.rekap-table-container .table tbody td.rekap-subtotal-value {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 17px !important;
+    /* Paling besar biar eye-catching */
+    font-weight: 800 !important;
+    /* Extra Bold */
+    color: #dc3545 !important;
+    /* MERAH (Danger Color) */
+    text-align: right !important;
+    padding: 18px 16px !important;
+    background-color: #fff !important;
+    /* Pastikan background putih bersih */
+}
+
+/* 4. GARIS PEMISAH */
+/* Tambahkan garis di atas total biar terlihat seperti penjumlahan */
+.rekap-table-container .table tbody tr.rekap-subtotal-row td {
+    border-top: 2px solid #dee2e6 !important;
 }
