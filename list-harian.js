@@ -98,38 +98,61 @@ async function getAllListHarian(filters = {}) {
 // ✅ DIPERBAIKI: Tambah parameter filters
 async function searchListHarian(keyword, filters = {}) {
     try {
-        console.log(`🔍 Searching list harian (nama/KJP): ${keyword}`, filters); // (Log diubah)
+        console.log(`🔍 Searching list harian (nama/KJP): ${keyword}`, filters);
+
         if (!keyword || keyword.trim() === '') {
             return [];
         }
 
-        // Build query dengan filter
+        // [FIX] 1. Normalisasi Keyword: Hapus kurung/simbol yg bikin error syntax Supabase
+        // Ganti tanda kurung dengan spasi agar "Adnan(Narendra)" jadi "Adnan Narendra"
+        const cleanKeyword = keyword.replace(/[()\[\]{},]/g, ' ').trim();
+
+        // [FIX] 2. Pecah menjadi kata-kata terpisah
+        const words = cleanKeyword.split(/\s+/).filter(w => w.length > 0);
+
+        if (words.length === 0) return [];
+
+        // Build Query Dasar
         let query = supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
-            .select('*')
-            // ✅ PATCH: Menggunakan .or() untuk mencari di NAMA atau NO KJP
-            .or(`nama_user.ilike.%${keyword}%,no_kjp.ilike.%${keyword}%`);
+            .select('*');
 
-        // ✅ TAMBAHAN: Apply filters jika ada
-        if (filters.status_order) {
-            query = query.eq('status_order', filters.status_order);
-        }
+        // [FIX] 3. Konstruksi Pencarian Aman (OR Logic ke Database)
+        // Kita minta DB mencari baris yg mengandung SALAH SATU kata kunci
+        // Contoh: cari yg ada "Adnan" ATAU "Narendra"
+        const orConditions = [];
+        words.forEach(w => {
+            orConditions.push(`nama_user.ilike.%${w}%`);
+            orConditions.push(`no_kjp.ilike.%${w}%`);
+        });
 
-        if (filters.status_bayar) {
-            query = query.eq('status_bayar', filters.status_bayar);
-        }
+        // Gabung kondisi dengan koma
+        query = query.or(orConditions.join(','));
 
-        if (filters.tgl_order) {
-            query = query.eq('tgl_order', filters.tgl_order);
-        }
+        // 4. Apply Filters (Tetap sama)
+        if (filters.status_order) query = query.eq('status_order', filters.status_order);
+        if (filters.status_bayar) query = query.eq('status_bayar', filters.status_bayar);
+        if (filters.tgl_order) query = query.eq('tgl_order', filters.tgl_order);
 
         // Execute query
         const { data, error } = await query.order('tgl_order', { ascending: false });
 
         if (error) throw error;
 
-        console.log(`✅ Found ${data?.length || 0} results`);
-        return data || [];
+        // [FIX] 5. Filter Strict di JavaScript (AND Logic)
+        // DB mengembalikan hasil luas (Adnan ATAU Narendra).
+        // Di sini kita saring agar HANYA data yang mengandung SEMUA kata yang muncul.
+        // Jadi "Adnan Narendra" hanya akan cocok dengan data yang punya kedua kata tersebut.
+        const filteredData = (data || []).filter(item => {
+            const searchTarget = `${item.nama_user} ${item.no_kjp}`.toLowerCase();
+            // Cek apakah setiap kata dari input user ada di data ini
+            return words.every(w => searchTarget.includes(w.toLowerCase()));
+        });
+
+        console.log(`✅ Found ${filteredData.length} results (filtered from ${data?.length})`);
+        return filteredData;
+
     } catch (error) {
         console.error('❌ Error:', error.message);
         throw error;
