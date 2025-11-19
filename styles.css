@@ -1020,3 +1020,306 @@ div.tab-pane.show {
     line-height: 1.4 !important;
     /* Rapatkan sedikit jarak antar baris teks jika ada yg 2 baris */
 }
+
+/* ============================================================
+   PATCH DASHBOARD KPI: MODERN FLOATING CARDS
+   Mengubah kotak kaku menjadi kartu modern yang elegan
+   ============================================================ */
+
+/* 1. STYLE DASAR KARTU KPI */
+#dashboard-kpi .card {
+    background: #ffffff;
+    border: none !important;
+    /* Hapus border bawaan */
+    border-radius: 16px !important;
+    /* Sudut membulat (Rounded) */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    /* Bayangan lembut */
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    /* Transisi halus saat hover */
+    margin-bottom: 24px;
+    /* Jarak antar baris jika di mobile */
+}
+
+/* 2. EFEK HOVER (SAAT MOUSE MASUK) */
+#dashboard-kpi .card:hover {
+    transform: translateY(-5px);
+    /* Kartu naik sedikit */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    /* Bayangan makin dalam */
+}
+
+/* 3. MENGATUR ISI KARTU (Card Body) */
+#dashboard-kpi .card-body {
+    padding: 24px 20px;
+    /* Spasi dalam lega */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 4. JUDUL KECIL DI ATAS (OMZET BULAN INI, dll) */
+#dashboard-kpi .card-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #a0aec0;
+    /* Warna abu soft */
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* 5. ANGKA BESAR (NOMINAL/JUMLAH) */
+#dashboard-kpi h3,
+#dashboard-kpi .h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 28px !important;
+    /* Ukuran Besar */
+    font-weight: 700 !important;
+    /* Bold */
+    color: #2d3748;
+    /* Warna Gelap Modern */
+    margin-bottom: 5px;
+    letter-spacing: -0.5px;
+    /* Rapatkan sedikit biar padat */
+}
+
+/* 6. TEKS STATUS/KETERANGAN DI BAWAH */
+#dashboard-kpi small,
+#dashboard-kpi .text-muted {
+    font-size: 13px !important;
+    font-weight: 500;
+    color: #718096 !important;
+}
+
+/* ============================================================
+   WARNA AKSEN (SIDEBAR KIRI)
+   ============================================================ */
+
+/* Biru (Omzet) */
+#dashboard-kpi .card.border-primary {
+    border-left: 6px solid #0d6efd !important;
+    /* Garis tebal di kiri */
+}
+
+/* Kuning (Transaksi) */
+#dashboard-kpi .card.border-warning {
+    border-left: 6px solid #ffc107 !important;
+}
+
+/* Hijau (Pembayaran) */
+#dashboard-kpi .card.border-success {
+    border-left: 6px solid #198754 !important;
+}
+
+/* Cyan (Rata-rata) */
+#dashboard-kpi .card.border-info {
+    border-left: 6px solid #0dcaf0 !important;
+}
+
+/* ============================================================
+   HIASAN ICON SAMAR DI BACKGROUND (OPSIONAL - BIAR KEREN)
+   Membuat icon besar transparan di pojok kanan
+   ============================================================ */
+#dashboard-kpi .card::after {
+    content: "";
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 80px;
+    height: 80px;
+    background: currentColor;
+    opacity: 0.05;
+    /* Sangat transparan */
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Memastikan teks ada di atas hiasan */
+#dashboard-kpi .card-body {
+    z-index: 1;
+}
+
+/* ============================================================
+   PATCH FINAL V8: DASHBOARD CENTER & SUPER GIANT
+   ============================================================ */
+
+/* 1. KONTAINER KARTU: RATA TENGAH TOTAL */
+#dashboard-kpi .card-body {
+    padding: 30px 20px !important;
+    /* Padding atas bawah lebih lega */
+    display: flex;
+    /* Gunakan Flexbox */
+    flex-direction: column;
+    /* Susunan vertikal (atas ke bawah) */
+    align-items: center !important;
+    /* Rata Tengah Horizontal */
+    justify-content: center !important;
+    /* Rata Tengah Vertikal */
+    text-align: center !important;
+    /* Pastikan teks juga rata tengah */
+}
+
+/* 2. JUDUL KECIL (OMZET, TRANSAKSI, DLL) */
+#dashboard-kpi .card-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px !important;
+    /* Ukuran judul pas */
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #6c757d;
+    font-weight: 700;
+    margin-bottom: 10px;
+    /* Jarak ke angka */
+    width: 100%;
+    /* Pastikan lebar penuh agar center works */
+}
+
+/* 3. ANGKA UTAMA (SUPER RAKSASA) */
+/* Kita hapus properti 'color' agar warna asli (Biru/Kuning/Hijau) dari HTML tetap muncul */
+#dashboard-kpi h3,
+#dashboard-kpi .h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 58px !important;
+    /* UKURAN JUMBO NYATA */
+    font-weight: 800 !important;
+    /* Extra Bold */
+    margin-bottom: 10px;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    width: 100%;
+    display: block;
+}
+
+/* 4. TEKS KETERANGAN DI BAWAH */
+#dashboard-kpi small,
+#dashboard-kpi .text-muted {
+    font-size: 16px !important;
+    font-weight: 600;
+    color: #6c757d !important;
+    margin-top: 5px;
+}
+
+/* 5. BADGE / TOMBOL KECIL STATUS */
+#dashboard-kpi .badge {
+    font-size: 14px !important;
+    padding: 8px 16px !important;
+    border-radius: 20px;
+    /* Kita buat bulat kapsul biar lebih modern di tengah */
+    margin: 2px;
+    display: inline-block;
+}
+
+/* 6. ICON BACKGROUND (OPSIONAL - POSISI DIPERBAIKI) */
+/* Karena center, icon background kita pindahkan sedikit atau hilangkan jika mengganggu */
+#dashboard-kpi .card::after {
+    content: "";
+    position: absolute;
+    top: -10%;
+    right: -5%;
+    width: 150px;
+    height: 150px;
+    background: currentColor;
+    opacity: 0.03;
+    /* Sangat tipis agar tidak tabrakan dengan teks tengah */
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* ============================================================
+   PATCH FINAL V12: JUDUL & STATUS HITAM PEKAT (BOLD)
+   Angka utama tetap berwarna, teks lain hitam tegas.
+   ============================================================ */
+
+/* 1. KONTAINER KARTU */
+#dashboard-kpi .card-body {
+    padding: 24px 15px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    min-height: 140px;
+}
+
+/* 2. JUDUL KECIL (OMZET, TRANSAKSI, PEMBAYARAN) -> HITAM PEKAT */
+#dashboard-kpi .card-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #000000 !important;
+    /* <--- HITAM PEKAT */
+    font-weight: 800 !important;
+    /* <--- BOLD BANGET */
+    margin-bottom: 8px !important;
+    width: 100%;
+    opacity: 1 !important;
+    /* Hapus efek transparan */
+}
+
+/* 3. ANGKA UTAMA (TETAP WARNA-WARNI & UKURAN PAS) */
+#dashboard-kpi .card-body h2,
+#dashboard-kpi .card-body h3,
+#dashboard-kpi .card-body h4,
+#dashboard-kpi .card-body .h2,
+#dashboard-kpi .card-body .h3 {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 42px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.5px !important;
+    margin-bottom: 8px !important;
+    width: 100% !important;
+    display: block !important;
+    white-space: nowrap;
+}
+
+/* Pastikan Warna Angka Utama Tetap Muncul (Tidak Tertimpa Hitam) */
+#dashboard-kpi .text-primary {
+    color: #0d6efd !important;
+}
+
+#dashboard-kpi .text-success {
+    color: #198754 !important;
+}
+
+#dashboard-kpi .text-warning {
+    color: #ffc107 !important;
+}
+
+#dashboard-kpi .text-info {
+    color: #0dcaf0 !important;
+}
+
+#dashboard-kpi .text-danger {
+    color: #dc3545 !important;
+}
+
+/* 4. TEKS STATUS DI BAWAH (Status: success, Belum Lunas, dll) -> HITAM PEKAT */
+#dashboard-kpi small,
+#dashboard-kpi .text-muted {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    /* <--- DI BOLD JUGA */
+    color: #000000 !important;
+    /* <--- HITAM PEKAT */
+    margin-top: 4px !important;
+    opacity: 1 !important;
+}
+
+/* 5. BADGE (KOTAK KECIL 650, 0, 134) -> WARNA ASLI TETAP, TAPI BOLD */
+#dashboard-kpi .badge {
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+    border-radius: 50px;
+    margin: 2px;
+    font-weight: 800 !important;
+    /* <--- TEBALKAN ANGKA DI DALAMNYA */
+    /* Warna background (hijau/kuning/merah) mengikuti class HTML aslinya */
+}
