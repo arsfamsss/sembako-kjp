@@ -256,7 +256,8 @@ async function importTelegramData(textContent) {
                 if (cleanKtp && existingKtpSet.has(ktpKey)) {
                     errors.push({
                         row: rowNum, noKjp: item.noKjp, nama: masterData.nama_user,
-                        error: `Duplikat KTP: No KTP ${cleanKtp} sudah transaksi di tgl ${item.tglOrder} (Mungkin saudara/KK sama)`
+                        // Gunakan pesan bahasa Indonesia yang halus
+                        error: `Gagal: KTP Pemilik (${masterData.parent_name}) sudah dipakai transaksi hari ini.`
                     });
                     console.warn(`⚠️ Row ${rowNum}: Transaksi KTP ${ktpKey} sudah ada (SKIP)`);
                     continue;

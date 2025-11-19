@@ -106,9 +106,12 @@ const ERROR_MESSAGES = {
 
     // List Harian
     NAMA_MASTER_REQUIRED: 'Pilih nama pelanggan',
-    TGL_AMBIL_ERROR: 'Tanggal ambil harus ≥ tanggal order',
-    KJP_DUPLICATE_PER_DATE: 'No. KJP sudah ada di tanggal ini',
-    KTP_DUPLICATE_PER_DATE: 'No. KTP sudah ada di tanggal ini',
+    TGL_AMBIL_ERROR: 'Tanggal ambil harus setelah atau sama dengan tanggal order',
+
+    // ERROR DUPLIKASI (BAHASA AWAM)
+    KJP_DUPLICATE_PER_DATE: 'Gagal: KJP ini sudah transaksi di tanggal tersebut.',
+    KTP_DUPLICATE_PER_DATE: 'Gagal: Pemilik KTP ini sudah transaksi di tanggal tersebut (Cek jika ada saudara/KK sama).',
+    DUPLICATE_ENTRY: 'Data ganda: Transaksi ini sudah pernah diinput sebelumnya.',
 
     // Generic
     NETWORK_ERROR: 'Gagal menghubungi server',

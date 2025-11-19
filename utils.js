@@ -410,38 +410,43 @@ function parseSupabaseError(error) {
     }
 
     const msg = error.message;
+    const details = error.details || '';
 
-    // Cek duplikasi Data Master
-    if (msg.includes('duplicate key') && msg.includes('data_master_no_kjp_key')) {
-        return ERROR_MESSAGES.KJP_DUPLICATE;
-    }
-    if (msg.includes('duplicate key') && msg.includes('data_master_nama_user_key')) {
-        return ERROR_MESSAGES.NAMA_DUPLICATE;
+    // 1. Cek Constraint KTP (Error yang Anda alami)
+    if (msg.includes('unique_ktp_per_date') || details.includes('unique_ktp_per_date')) {
+        return ERROR_MESSAGES.KTP_DUPLICATE_PER_DATE;
     }
 
-    // Cek duplikasi List Harian (jika Anda menambah constraint unik di DB)
-    if (msg.includes('duplicate key') && msg.includes('list_harian_kjp_tgl_order_uniq')) {
+    // 2. Cek Constraint KJP
+    if (msg.includes('list_harian_kjp_tgl_order_uniq')) {
         return ERROR_MESSAGES.KJP_DUPLICATE_PER_DATE;
     }
 
-    // Cek validasi RLS (Row Level Security) atau check constraints
-    if (msg.includes('check_kjp_length')) {
-        return ERROR_MESSAGES.KJP_FORMAT;
+    // 3. Cek Duplikasi Data Master
+    if (msg.includes('data_master_no_kjp_key')) {
+        return ERROR_MESSAGES.KJP_DUPLICATE;
     }
-    if (msg.includes('check_ktp_length')) {
-        return ERROR_MESSAGES.KTP_FORMAT;
-    }
-    if (msg.includes('check_kk_length')) {
-        return ERROR_MESSAGES.KK_FORMAT;
+    if (msg.includes('data_master_nama_user_key')) {
+        return ERROR_MESSAGES.NAMA_DUPLICATE;
     }
 
-    // Cek error jaringan
+    // 4. Cek Error Umum Postgres (409 Conflict)
+    if (msg.includes('duplicate key') || error.code === '23505') {
+        return ERROR_MESSAGES.DUPLICATE_ENTRY;
+    }
+
+    // 5. Cek Validasi Panjang Karakter
+    if (msg.includes('check_kjp_length')) return ERROR_MESSAGES.KJP_FORMAT;
+    if (msg.includes('check_ktp_length')) return ERROR_MESSAGES.KTP_FORMAT;
+    if (msg.includes('check_kk_length')) return ERROR_MESSAGES.KK_FORMAT;
+
+    // 6. Error Jaringan
     if (msg.includes('network error') || msg.includes('Failed to fetch')) {
         return ERROR_MESSAGES.NETWORK_ERROR;
     }
 
-    // Fallback ke pesan error standar (jika ada) atau pesan generik
-    return msg || ERROR_MESSAGES.UNKNOWN_ERROR;
+    // Fallback: Jika error tidak dikenal, tampilkan aslinya (untuk debug)
+    return msg;
 }
 
 /**
