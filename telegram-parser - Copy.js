@@ -184,7 +184,7 @@ async function importTelegramData(textContent) {
 
         const { data: existingTx, error: fetchError } = await supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
-            .select('no_kjp, no_ktp, tgl_order') // <--- Tambahkan no_ktp
+            .select('no_kjp, tgl_order')
             .in('tgl_order', relevantDates);
 
         if (fetchError) {
@@ -193,16 +193,8 @@ async function importTelegramData(textContent) {
         }
 
         // Buat Set untuk pencarian cepat (KJP|TANGGAL)
-        // Buat Set untuk pencarian cepat (KJP|TANGGAL)
         const existingTxSet = new Set(existingTx.map(tx => `${tx.no_kjp}|${tx.tgl_order}`));
-
-        // [PATCH] Buat Set untuk pencarian duplikat KTP (KTP|TANGGAL)
-        const existingKtpSet = new Set(existingTx
-            .filter(tx => tx.no_ktp) // Pastikan KTP tidak null
-            .map(tx => `${tx.no_ktp}|${tx.tgl_order}`)
-        );
-
-        console.log(`✅ Validasi: ${existingTxSet.size} transaksi KJP & ${existingKtpSet.size} transaksi KTP ada di DB.`);
+        console.log(`✅ Validasi: ${existingTxSet.size} transaksi sudah ada di DB pada tanggal terkait.`);
 
         const transactionsToInsert = [];
         const errors = [];
@@ -236,7 +228,7 @@ async function importTelegramData(textContent) {
                 // Sanitasi nomor dari Data Master sebelum cek duplikat
                 const cleanKjp = cleanNumber(masterData.no_kjp);
 
-                // 2. Cek Duplikat Transaksi (Requirement 1 - KJP)
+                // 2. Cek Duplikat Transaksi (Requirement 1)
                 const txKey = `${cleanKjp}|${item.tglOrder}`;
 
                 if (existingTxSet.has(txKey)) {
@@ -244,21 +236,7 @@ async function importTelegramData(textContent) {
                         row: rowNum, noKjp: item.noKjp, nama: masterData.nama_user,
                         error: `Duplikat: Transaksi KJP ini sudah ada di tgl ${item.tglOrder}`
                     });
-                    console.warn(`⚠️ Row ${rowNum}: Transaksi KJP ${txKey} sudah ada (SKIP)`);
-                    continue;
-                }
-
-                // [PATCH] 3. Cek Duplikat KTP (Requirement Database: unique_ktp_per_date)
-                // Pastikan kita ambil KTP yang bersih dari Master Data
-                const cleanKtp = cleanNumber(masterData.no_ktp);
-                const ktpKey = `${cleanKtp}|${item.tglOrder}`;
-
-                if (cleanKtp && existingKtpSet.has(ktpKey)) {
-                    errors.push({
-                        row: rowNum, noKjp: item.noKjp, nama: masterData.nama_user,
-                        error: `Duplikat KTP: No KTP ${cleanKtp} sudah transaksi di tgl ${item.tglOrder} (Mungkin saudara/KK sama)`
-                    });
-                    console.warn(`⚠️ Row ${rowNum}: Transaksi KTP ${ktpKey} sudah ada (SKIP)`);
+                    console.warn(`⚠️ Row ${rowNum}: Transaksi ${txKey} sudah ada (SKIP)`);
                     continue;
                 }
 
@@ -281,9 +259,6 @@ async function importTelegramData(textContent) {
 
                 // Tambahkan ke Set agar tidak duplikat dari file Telegram itu sendiri
                 existingTxSet.add(txKey);
-                if (cleanNumber(masterData.no_ktp)) {
-                    existingKtpSet.add(`${cleanNumber(masterData.no_ktp)}|${item.tglOrder}`);
-                }
 
             } catch (err) {
                 errors.push({ row: rowNum, noKjp: item.noKjp, error: err.message });
