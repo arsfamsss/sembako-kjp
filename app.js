@@ -288,150 +288,159 @@ function renderTrendOmzetChart(data) {
 }
 
 /**
- * Grafik 3: Top 10 Keluarga (Bar Horizontal)
- * Omzet & Jumlah Anggota grouped by parent_name
- */
-// ======================================================
-// GANTI SELURUH FUNGSI INI
-// ======================================================
-/**
- * Grafik 3: Top 10 Keluarga (Bar Horizontal)
- * Omzet & Jumlah Anggota grouped by parent_name
+ * Grafik 3: Top 20 Keluarga (Omzet Terbanyak) - FINAL VERSION
+ * - Font Lebih Besar
+ * - Ada Label Jumlah Transaksi di Atas Batang
  */
 function renderTopParentChart(data) {
     try {
         const parentStats = {};
         data.forEach(d => {
-            const parent = d.parent_name || 'Tanpa Parent';
+            let parent = d.parent_name;
+            if (!parent || parent.trim() === '') {
+                parent = d.nama_user ? extractParentName(d.nama_user) : 'Tanpa Nama';
+            }
+
             if (!parentStats[parent]) parentStats[parent] = { omzet: 0, count: 0 };
-            // ✅ FIX: Omzet dihitung dari status_order SUKSES, bukan status_bayar LUNAS
+
             if (d.status_order === 'SUKSES') {
-                // ✅ FIX: Gunakan nominal 20000 per transaksi sukses, sesuai KPI
                 parentStats[parent].omzet += 20000;
                 parentStats[parent].count += 1;
             }
         });
 
+        // Ambil Top 20
         const topParents = Object.entries(parentStats)
             .map(([name, stats]) => ({ name, ...stats }))
             .sort((a, b) => b.omzet - a.omzet)
-            .slice(0, 10);
+            .slice(0, 20);
 
         if (topParents.length === 0) {
             console.warn('⚠️ No parent data for chart');
             return;
         }
 
-        // ===================================
-        // PATCH BAGIAN OLAH DATA
-        // ===================================
-        const names = topParents.map(p => p.name.substring(0, 20));
-        // ✅ FIX: Gunakan omzet penuh, jangan dibagi 1000
+        // Persiapan Data
+        const names = topParents.map(p => {
+            const n = p.name;
+            // Potong nama sedikit lebih panjang biar jelas (maks 18 karakter)
+            return n.length > 18 ? n.substring(0, 18) + '..' : n;
+        });
         const omzet = topParents.map(p => p.omzet);
         const count = topParents.map(p => p.count);
 
         const ctx = document.getElementById('topParentChart');
-        if (!ctx) {
-            console.warn('⚠️ Canvas topParentChart not found');
-            return;
-        }
+        if (!ctx) return;
 
-        // ✅ FIX: Proper destroy check
-        if (window.topParentChart && typeof window.topParentChart.destroy === 'function') {
+        if (window.topParentChart instanceof Chart) {
             window.topParentChart.destroy();
         }
 
-        // ===================================
-        // PATCH BAGIAN OPSI CHART.JS
-        // ===================================
+        const infographicColors = [
+            '#FF5733', '#FF8D1A', '#FFC300', '#DAF7A6', '#33FF57',
+            '#33FFBD', '#33DBFF', '#3375FF', '#8D33FF', '#C733FF',
+            '#FF33A8', '#FF3361', '#F08080', '#CD5C5C', '#FA8072',
+            '#E9967A', '#FF4500', '#FF6347', '#FFD700', '#ADFF2F'
+        ];
+
+        // PLUGIN KHUSUS: MENAMPILKAN ANGKA DI ATAS BATANG
+        const dataLabelPlugin = {
+            id: 'dataLabelPlugin',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                chart.data.datasets.forEach((dataset, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    if (meta.hidden) return;
+
+                    meta.data.forEach((element, index) => {
+                        // Ambil jumlah transaksi dari array 'count'
+                        const dataString = count[index] + ' Trx';
+
+                        ctx.save();
+                        ctx.font = 'bold 12px Poppins'; // Font Label di atas batang
+                        ctx.fillStyle = '#444'; // Warna Teks Abu Gelap
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+
+                        const position = element.tooltipPosition();
+                        // Gambar teks 5px di atas batang
+                        ctx.fillText(dataString, position.x, position.y - 6);
+                        ctx.restore();
+                    });
+                });
+            }
+        };
+
         window.topParentChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: names,
                 datasets: [
                     {
-                        // ✅ FIX 1: Ubah label (hapus 'Ribu')
-                        label: 'Omzet (Rp)',
+                        label: 'Omzet',
                         data: omzet,
-                        backgroundColor: '#0d6efd',
-                        // ✅ FIX 2: Tentukan axis 'x' untuk nilai (bukan 'y')
-                        xAxisID: 'x'
-                    },
-                    {
-                        // ✅ FIX 3: Ubah label 'Anggota' jadi 'Transaksi'
-                        label: 'Transaksi',
-                        data: count,
-                        backgroundColor: '#28a745',
-                        // ✅ FIX 4: Tentukan axis 'x1' untuk nilai
-                        xAxisID: 'x1'
+                        backgroundColor: infographicColors,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.75,
+                        categoryPercentage: 0.85
                     }
                 ]
             },
+            plugins: [dataLabelPlugin], // <--- Aktifkan Plugin Label
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                // ✅ FIX 5: Definisikan ulang SEMUA scales
-                scales: {
-                    // Axis Kategori (Nama Pelanggan) - Vertikal
-                    y: {
-                        type: 'category',
-                        ticks: { font: { size: 12 } }
-                    },
-                    // Axis Nilai 1 (Omzet) - Bawah
-                    x: {
-                        type: 'linear',
-                        position: 'bottom',
-                        title: { display: true, text: 'Total Omzet (Rp)', font: { size: 14 } },
-                        ticks: {
-                            font: { size: 12 },
-                            // Format angka di axis bawah (misal: 1.000.000)
-                            callback: function (value) {
-                                return new Intl.NumberFormat('id-ID').format(value);
-                            }
-                        }
-                    },
-                    // Axis Nilai 2 (Transaksi) - Atas
-                    x1: {
-                        type: 'linear',
-                        position: 'top', // Pindahkan dari 'right' ke 'top'
-                        title: { display: true, text: 'Jumlah Transaksi', font: { size: 14 } },
-                        ticks: {
-                            font: { size: 12 },
-                            // Pastikan hanya angka bulat (tidak ada 0.8, 0.9)
-                            precision: 0
-                        },
-                        grid: { drawOnChartArea: false } // Agar grid tidak tumpang tindih
+                layout: {
+                    padding: {
+                        top: 25 // Tambah padding atas biar tulisan tidak kepotong
                     }
                 },
                 plugins: {
-                    legend: { position: 'top', labels: { padding: 15, font: { size: 12 } } },
-                    // ✅ FIX 6: Sederhanakan Tooltip
+                    legend: { display: false },
                     tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        titleFont: { family: 'Poppins', size: 14 }, // Tooltip Besar
+                        bodyFont: { family: 'Poppins', size: 14 },   // Tooltip Besar
+                        padding: 12,
                         callbacks: {
                             label: function (context) {
-                                const dataIndex = context.dataIndex;
-
-                                // Ambil Omzet (dari dataset 0)
-                                const omzetValue = context.chart.data.datasets[0].data[dataIndex];
-                                const formattedOmzet = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(omzetValue);
-
-                                // Ambil Transaksi (dari dataset 1)
-                                const transaksiValue = context.chart.data.datasets[1].data[dataIndex];
-
-                                // Tampilkan keduanya
-                                return [
-                                    `Omzet: ${formattedOmzet}`,
-                                    `Transaksi: ${transaksiValue}`
-                                ];
+                                const idx = context.dataIndex;
+                                const val = new Intl.NumberFormat('id-ID').format(context.raw);
+                                const trx = count[idx];
+                                return [`Omzet: Rp ${val}`, `Transaksi: ${trx}`];
                             }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f0f0f0',
+                            drawBorder: false,
+                        },
+                        ticks: {
+                            font: { family: 'Poppins', size: 12, weight: '500' }, // Font Y Axis DIPERBESAR
+                            color: '#555',
+                            callback: function (value) {
+                                return (value / 1000) + 'k';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { family: 'Poppins', size: 12, weight: 'bold' }, // Font Nama DIPERBESAR
+                            color: '#333',
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 45
                         }
                     }
                 }
             }
         });
-
-        console.log('✅ Top Parent Chart rendered, count:', topParents.length);
 
     } catch (error) {
         console.error('❌ Error rendering Top Parent Chart:', error);
