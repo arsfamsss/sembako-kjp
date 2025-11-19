@@ -980,3 +980,43 @@ div.tab-pane.show {
 .rekap-table-container .table tbody tr.rekap-subtotal-row td {
     border-top: 2px solid #dee2e6 !important;
 }
+
+/* ============================================================
+   PATCH FINAL V4: RAPATKAN JARAK BARIS (COMPACT MODE)
+   Kecuali Dashboard (Dashboard pakai card, jadi tidak terpengaruh)
+   ============================================================ */
+
+/* 1. MENGECILKAN PADDING TABEL (Data Pelanggan, Transaksi, Rekap) */
+/* Sebelumnya 16px, kita turunkan ke 10px-12px agar lebih rapat */
+
+.table tbody td,
+.table tbody th,
+.rekap-table-container .table tbody td,
+.rekap-table-container .table tbody th {
+    padding: 10px 12px !important;
+    /* Atas-Bawah 10px, Kiri-Kanan 12px */
+}
+
+/* 2. MENGECILKAN PADDING HEADER TABEL */
+/* Agar header juga tidak terlalu memakan tempat vertikal */
+.table thead th,
+.rekap-table-container .table thead th {
+    padding: 12px !important;
+}
+
+/* 3. KHUSUS REKAP: BAGIAN TOTAL (Subtotal Rows) */
+/* Bagian ini tetap kita beri sedikit ruang lebih (14px) biar menonjol, tapi lebih rapat dari sebelumnya */
+.rekap-table-container .table tbody td.rekap-subtotal-label,
+.rekap-table-container .table tbody td.rekap-trx-value,
+.rekap-table-container .table tbody td.rekap-subtotal-value {
+    padding: 14px 16px !important;
+}
+
+/* 4. PERBAIKI POSISI VERTICAL ALIGN */
+/* Pastikan teks tetap di tengah secara vertikal */
+.table td,
+.table th {
+    vertical-align: middle !important;
+    line-height: 1.4 !important;
+    /* Rapatkan sedikit jarak antar baris teks jika ada yg 2 baris */
+}

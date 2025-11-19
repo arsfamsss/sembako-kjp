@@ -264,13 +264,19 @@ function formatNomor(nomor) {
 }
 
 function formatCurrency(amount) {
-    if (!amount && amount !== 0) return 'Rp 0';
+    // Cek jika value null/undefined/kosong
+    if (amount === null || amount === undefined || amount === '') return 'Rp 0';
+
+    // Pastikan input adalah angka
+    const num = parseFloat(amount);
+    if (isNaN(num)) return 'Rp 0';
 
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0,
-    }).format(amount);
+        maximumFractionDigits: 0  /* <--- INI KUNCINYA: Paksa 0 angka di belakang koma */
+    }).format(num);
 }
 
 function formatDateToDisplay(isoDate) {
