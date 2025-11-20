@@ -1459,7 +1459,7 @@ div.tab-pane.show {
 .running-text-content {
     display: inline-block;
     padding-left: 100%;
-    animation: modern-marquee 20s linear infinite;
+    animation: modern-marquee 750s linear infinite;
     /* Sedikit dipercepat agar flow enak */
 
     /* UPDATE UKURAN FONT */

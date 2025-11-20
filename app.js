@@ -2673,29 +2673,59 @@ async function exportDataMasterXLSX() {
 // HEADER RUNNING TEXT UPDATE
 // ============================================
 
+// app.js
+
 function updateHeaderRunningText() {
     const element = document.getElementById('header-running-text');
     if (!element) return;
 
-    const now = new Date();
+    // --- PUISI PANJANG (41 QUOTES DIRAPATKAN) ---
+    // Gunakan simbol | ❤ | sebagai pemisah antar quote
+    const myText =
+        "Ada 26 huruf dalam huruf alfabet, tapi aku hanya tertarik pada U." +
+        " | ❤ | " + "Aku pernah menolak yang datang, hanya untuk mempertahankan dia yang ingin pergi." +
+        " | ❤ | " + "Dingin tak selalu tentang suhu, bisa juga tentang sikapmu kepadaku." +
+        " | ❤ | " + "Lelaki yang mencintai banyak wanita berarti dia memahami wanita, tapi lelaki yang mencintai satu wanita berarti dia memahami cinta." +
+        " | ❤ | " + "Tidak ada yang namanya mantan terindah karena yang terindah tidak akan meninggalkan cerita, tapi selalu membuat cerita." +
+        " | ❤ | " + "Selamat pagi buat kamu yang selalu kunanti, yang tak pernah kumiliki, dan semuanya hanya imajinasi. Ambillah cangkulmu dan mari bercocok tanam bersamaku." +
+        " | ❤ | " + "Sholatlah walau terpaksa, berhijablah walau terpaksa karena lebih baik dipaksa masuk surga, daripada sukarela masuk neraka." +
+        " | ❤ | " + "Jatuh cintalah kepada mereka yang pernah patah hati karena mereka lebih tahu caranya menghargai." +
+        " | ❤ | " + "Ingat ya, ada beras yang harus dijadikan nasi. Ada ukhty yang harus dijadikan istri." +
+        " | ❤ | " + "Indahnya pelangi akan kalah dengan sinar matahari, karena yang datang sesaat akan kalah dengan yang tiap hari menemani." +
+        " | ❤ | " + "Harapanku sederhana, semoga kelak kita dapat menyaksikan matahari terbit dari jendela yang sama." +
+        " | ❤ | " + "Hilangku tak dicari, hadirku tak dinanti, pergiku tak ditahan, kembaliku tak diharapkan. Memang mencintai sendirian itu menyakitkan." +
+        " | ❤ | " + "Kamu bagiku adalah candu, namun aku bagimu sebatas canda." +
+        " | ❤ | " + "Hanya karena nyaman, aku lupa bahwa kita hanya sebatas teman." +
+        " | ❤ | " + "Maafkan aku yang sering mengganggu waktumu hanya karena urusan rindu." +
+        " | ❤ | " + "Aku bersedia menjadi hujan di tengah kemaraumu. Namun, setelah aku jatuh, kau memilih berteduh." +
+        " | ❤ | " + "Faktanya, kita tak benar-benar ingin melupakan. Hanya menjaga jarak agar tak saling merindukan." +
+        " | ❤ | " + "Di langit yang kau tatap, ada rindu yang kutitip." +
+        " | ❤ | " + "Dulu, kita pernah tertawa lepas, sebelum akhirnya saling melepas." +
+        " | ❤ | " + "Titip salam buat orang tuamu, dari aku yang siap melanjutkan kasih sayang mereka kepadamu." +
+        " | ❤ | " + "Siapa yang mencintai terlalu dalam, dialah yang terbuang." +
+        " | ❤ | " + "Aku terlalu mencintai manusia hingga Tuhan cemburu dan memberi luka." +
+        " | ❤ | " + "Aku adalah seorang yang dipaksa maju oleh cinta, dan dipukul mundur oleh harta." +
+        " | ❤ | " + "Darimana datangnya kecewa? Dari dia yang kau anggap istimewa." +
+        " | ❤ | " + "Dia hanya bercanda. Harusnya kamu tertawa, bukan malah jatuh cinta." +
+        " | ❤ | " + "Aku tak berhenti mencintaimu, aku hanya berhenti menunjukkannya." +
+        " | ❤ | " + "Jangankan pacaran, minta hotspot sama teman saja sering diputusin." +
+        " | ❤ | " + "Patah sebelum parah, adalah cara Tuhan menyelamatkan kita dari orang yang salah." +
+        " | ❤ | " + "Aku pernah menjadi orang paling cemas sebelum menjadi orang yang paling ikhlas." +
+        " | ❤ | " + "Jangan cari yang sempurna. Karena ini dunia, bukan surga." +
+        " | ❤ | " + "Semesta memaksaku untuk melepaskannya, padahal aku saja belum pernah menggenggamnya." +
+        " | ❤ | " + "Aku seringkali keliru menafsirkan rindu, kadang menjadi rasa ingin bertemu, tak jarang juga menjadi cemburu yang membuat gelisah tak menentu. Maafkan segala kurangku." +
+        " | ❤ | " + "Jika mendekatimu adalah kesalahan, maka ijinkan aku berjuang untuk mencintaimu dengan sisa hal yang kau benarkan." +
+        " | ❤ | " + "Aku mencintaimu dari jauh, dari jarak-jaraj yang berusaha membuat kita rapuh, dan doa-doa yang inigin kita tetap utuh." +
+        " | ❤ | " + "Akulah laki-laki yang selalu berusaha membuatmu lupa bahawa kamu pernah terluka." +
+        " | ❤ | " + "Pada akhirnya, janji-janji tertulis akan kalah dengan bukti-bukti tertulus." +
+        " | ❤ | " + "Baru di senyumin udah berharap bisa milikin." +
+        " | ❤ | " + "Apakah aku harus memeluk senja, biar kamu tahu kamu itu berharga?" +
+        " | ❤ | " + "Sejak kau pergi, entah mengapa luka ini tumbuh subur dalam hati. Padahal kau tak benar-benar ku miliki." +
+        " | ❤ | " + "Kau tak perlu peduli, luka dan sepi sudah ku anggap teman sendiri." +
+        " | ❤ | " + "Kamu gak ada kabar, aku berpikir kamu memang sibuk atau aku yang gak penting.";
 
-    // Format Hari & Tanggal (Indonesia)
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateStr = now.toLocaleDateString('id-ID', options);
-
-    // Format Jam (WIB)
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':') + ' WIB';
-
-    // Text Custom Anda (Bisa diganti sesuka hati)
-    const mainTitle = "SISTEM PENDAFTARAN SEMBAKO KJP";
-    const subMessage = "Selamat Datang di Halaman Administrator";
-
-    // Gabungkan Text
-    // Simbol '•' atau '|' sebagai pemisah
-    const fullText = `${mainTitle}  •  ${dateStr} - ${timeStr}  •  ${subMessage}  •  ${mainTitle}`;
-
-    // Update HTML
-    element.textContent = fullText;
+    // Gabungkan teks 2x agar animasinya tidak ada jeda kosong
+    element.textContent = `${myText}   | ❤ |   ${myText}`;
 }
 
 // Panggil fungsi saat inisialisasi & update setiap menit
