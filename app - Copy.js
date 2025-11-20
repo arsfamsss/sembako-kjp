@@ -30,17 +30,17 @@ async function initializeApp() {
     try {
         console.log('🚀 Initializing Sembako KJP App...');
 
-        // Baris 'user-info' SUDAH DIHAPUS agar tidak error
+        // Set user info
+        document.getElementById('user-info').textContent = 'Admin User';
 
         // ========================================================
-        // Load Dashboard Awal
+        // ✅ PATCH 1: HANYA LOAD DASHBOARD (TAB AKTIF PERTAMA)
+        // Data lain akan diload oleh tab listener saat di-klik
         // ========================================================
+        // await loadDataMaster(); // <-- DIHAPUS
+        // await loadListHarian(); // <-- DIHAPUS
+        // await loadRekap(); // <-- DIHAPUS
         await loadDashboard();
-
-        // Panggil Running Text Manual (untuk memastikan dia jalan)
-        if (typeof updateHeaderRunningText === 'function') {
-            updateHeaderRunningText();
-        }
 
         console.log('✅ App initialized successfully!');
     } catch (error) {
@@ -49,7 +49,9 @@ async function initializeApp() {
     }
 }
 
-// Event Listener Utama
+/**
+ * Event listener untuk tab changes
+ */
 document.addEventListener('DOMContentLoaded', function () {
     initializeApp();
 
@@ -2668,38 +2670,3 @@ async function exportDataMasterXLSX() {
         showAlert('error', `Gagal export XLSX: ${error.message}`);
     }
 }
-
-// ============================================
-// HEADER RUNNING TEXT UPDATE
-// ============================================
-
-function updateHeaderRunningText() {
-    const element = document.getElementById('header-running-text');
-    if (!element) return;
-
-    const now = new Date();
-
-    // Format Hari & Tanggal (Indonesia)
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateStr = now.toLocaleDateString('id-ID', options);
-
-    // Format Jam (WIB)
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':') + ' WIB';
-
-    // Text Custom Anda (Bisa diganti sesuka hati)
-    const mainTitle = "SISTEM PENDAFTARAN SEMBAKO KJP";
-    const subMessage = "Selamat Datang di Halaman Administrator";
-
-    // Gabungkan Text
-    // Simbol '•' atau '|' sebagai pemisah
-    const fullText = `${mainTitle}  •  ${dateStr} - ${timeStr}  •  ${subMessage}  •  ${mainTitle}`;
-
-    // Update HTML
-    element.textContent = fullText;
-}
-
-// Panggil fungsi saat inisialisasi & update setiap menit
-document.addEventListener('DOMContentLoaded', () => {
-    updateHeaderRunningText();
-    setInterval(updateHeaderRunningText, 60000); // Update jam setiap 60 detik
-});
