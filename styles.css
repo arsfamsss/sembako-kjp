@@ -1366,3 +1366,85 @@ div.tab-pane.show {
     /* SUDAH DIGANTI KE 16PX */
     font-weight: 600 !important;
 }
+
+/* ============================================================
+   PATCH MODERN UI: TOMBOL & INPUT (ROUNDED & PROFESSIONAL)
+   Target: Semua Button, Input Search, Dropdown, & Badge
+   ============================================================ */
+
+/* 1. TOMBOL UTAMA (Import, Export, Tambah, dll) */
+.btn {
+    border-radius: 10px !important;
+    /* Sudut membulat 10px (Modern) */
+    font-weight: 600 !important;
+    /* Teks sedikit tebal */
+    letter-spacing: 0.5px;
+    /* Jarak antar huruf */
+    padding: 8px 20px !important;
+    /* Padding lebih lega */
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+    /* Bayangan halus */
+    transition: all 0.3s ease;
+    /* Animasi halus */
+    border: none !important;
+    /* Hapus border garis */
+}
+
+/* Efek saat tombol ditunjuk mouse (Hover) */
+.btn:hover {
+    transform: translateY(-2px);
+    /* Tombol naik sedikit */
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+    /* Bayangan menebal */
+    filter: brightness(1.05);
+    /* Warna sedikit lebih terang */
+}
+
+/* Efek saat tombol ditekan (Active) */
+.btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+/* 2. TOMBOL KECIL (Aksi di Tabel: Edit, Hapus) */
+.btn-sm {
+    border-radius: 8px !important;
+    /* Sedikit lebih kecil lengkungannya */
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+}
+
+/* 3. INPUT & DROPDOWN (Search Bar, Pilihan Status) */
+.form-control,
+.form-select {
+    border-radius: 10px !important;
+    /* Sudut membulat sama dengan tombol */
+    border: 1px solid #e0e0e0 !important;
+    /* Border abu soft */
+    padding: 10px 15px !important;
+    /* Spasi dalam lega */
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+    /* Shadow ke dalam tipis */
+    transition: all 0.3s ease;
+}
+
+/* Efek saat input diklik (Focus) */
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd !important;
+    /* Warna biru saat aktif */
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15) !important;
+    /* Glow biru halus */
+}
+
+/* 4. BADGE STATUS (Sukses, Belum Lunas) */
+.badge {
+    border-radius: 8px !important;
+    /* Tidak kotak tajam lagi */
+    padding: 8px 12px !important;
+    /* Sedikit lebih besar */
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* Bayangan tipis */
+}
