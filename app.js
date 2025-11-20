@@ -2020,6 +2020,37 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
         return;
     }
 
+    // ============================================================
+    // 🟢 PATCH FIX: HITUNG GRAND TOTAL SUMMARY (HEADER)
+    // ============================================================
+    let grandTotalTrx = 0;
+    let grandTotalNominal = 0;
+
+    if (detailData && detailData.length > 0) {
+        detailData.forEach(item => {
+            // Pastikan nominal berupa angka valid (default 20000 jika null)
+            const nominal = Number(item.nominal);
+            const nominalValid = !isNaN(nominal) ? nominal : 20000;
+
+            grandTotalTrx += 1;
+            grandTotalNominal += nominalValid;
+        });
+    }
+
+    // Update Element HTML (Box Biru di atas Tabel)
+    const elTrx = document.getElementById('grand-total-trx');
+    const elNominal = document.getElementById('grand-total-nominal');
+
+    if (elTrx) {
+        elTrx.textContent = grandTotalTrx + " Transaksi"; // Update teks jumlah transaksi
+    }
+    if (elNominal) {
+        elNominal.textContent = formatCurrency(grandTotalNominal); // Update teks total uang
+    }
+    // ============================================================
+    // 🟢 END PATCH
+    // ============================================================
+
     // Clear container
     while (container.firstChild) {
         container.removeChild(container.firstChild);
