@@ -454,10 +454,16 @@ async function downloadRekapTXT() {
 
         const element = document.createElement('a');
         const file = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
-        const today = new Date().toISOString().split('T')[0];
+
+        // UBAH FORMAT TANGGAL JADI DD-MM-YYYY
+        const d = new Date();
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const today = `${day}-${month}-${year}`;
 
         element.href = URL.createObjectURL(file);
-        element.download = `Rekap_Hutang_${today}.txt`;
+        element.download = `Rekap_Hutang_${today}.txt`; // Hasil: Rekap_Hutang_22-11-2025.txt
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
