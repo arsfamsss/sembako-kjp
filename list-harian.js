@@ -16,18 +16,20 @@ async function getListHarian(page = 1, filters = {}) {
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*', { count: 'exact' });
 
-        // ✅ ADDED - Filter Status Order
-        if (filters.status_order) {
+        // ✅ LOGIKA BARU: Filter hanya jalan jika TIDAK KOSONG
+
+        // 1. Filter Status Order
+        if (filters.status_order && filters.status_order !== '') {
             query = query.eq('status_order', filters.status_order);
         }
 
-        // Filter Status
-        if (filters.status_bayar) {
+        // 2. Filter Status Bayar
+        if (filters.status_bayar && filters.status_bayar !== '') {
             query = query.eq('status_bayar', filters.status_bayar);
         }
 
-        // FIX 3.3: Filter Tanggal
-        if (filters.tgl_order) {
+        // 3. Filter Tanggal Order
+        if (filters.tgl_order && filters.tgl_order !== '') {
             query = query.eq('tgl_order', filters.tgl_order);
         }
 
@@ -130,10 +132,16 @@ async function searchListHarian(keyword, filters = {}) {
         // Gabung kondisi dengan koma
         query = query.or(orConditions.join(','));
 
-        // 4. Apply Filters (Tetap sama)
-        if (filters.status_order) query = query.eq('status_order', filters.status_order);
-        if (filters.status_bayar) query = query.eq('status_bayar', filters.status_bayar);
-        if (filters.tgl_order) query = query.eq('tgl_order', filters.tgl_order);
+        // 4. Apply Filters (LOGIKA INDEPENDEN)
+        if (filters.status_order && filters.status_order !== '') {
+            query = query.eq('status_order', filters.status_order);
+        }
+        if (filters.status_bayar && filters.status_bayar !== '') {
+            query = query.eq('status_bayar', filters.status_bayar);
+        }
+        if (filters.tgl_order && filters.tgl_order !== '') {
+            query = query.eq('tgl_order', filters.tgl_order);
+        }
 
         // Execute query
         const { data, error } = await query.order('tgl_order', { ascending: false });

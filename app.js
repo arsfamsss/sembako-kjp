@@ -1135,6 +1135,8 @@ async function loadListHarian(page = 1) {
         currentPageListHarian = page;
 
         const filters = {
+            // ✅ WAJIB ADA: Ambil value dari dropdown Status Order
+            status_order: document.getElementById('filter-status-order')?.value || '',
             status_bayar: document.getElementById('filter-status-bayar')?.value || '',
             tgl_order: document.getElementById('filter-tgl-order')?.value || '',
             sort_field: listHarianSortField,
@@ -1711,67 +1713,78 @@ async function handleSelectPelanggan() {
 
 /**
  * Edit list harian (load data ke form)
+ * PATCHED: Isi data langsung dari DB, tidak bergantung dropdown
  */
 async function editListHarian(id) {
     try {
+        showLoading('Memuat data transaksi...');
         const data = await getListHarianById(id);
         await resetFormListHarian();
 
-
+        // 1. SET DATA UTAMA (ID & Hidden Fields)
         document.getElementById('list-harian-id').value = id;
         document.getElementById('id-master').value = data.id_master;
-        document.getElementById('nama-pelanggan').value = data.id_master;
 
+        // 2. [PATCH] ISI TAMPILAN LANGSUNG DARI DATABASE (Bypass Dropdown Dependency)
+        // Ini memastikan No KJP/KTP tetap muncul meski dropdown bermasalah
+        document.getElementById('no-kjp-display').value = formatNomor(data.no_kjp);
+        document.getElementById('no-ktp-display').value = formatNomor(data.no_ktp);
 
-        document.getElementById('tgl_order').value = data.tgl_order;           // ✅ DIPERBAIKI
-        document.getElementById('status_order').value = data.status_order;     // ✅ DIPERBAIKI
-        document.getElementById('status_bayar').value = data.status_bayar;     // ✅ DIPERBAIKI
+        // 3. URUS DROPDOWN (Hanya untuk visual)
+        const selectPelanggan = document.getElementById('nama-pelanggan');
+
+        // Cek apakah nama pelanggan ada di dropdown?
+        let optionExists = selectPelanggan.querySelector(`option[value="${data.id_master}"]`);
+
+        // Jika TIDAK ada (karena limit 500 atau pagination), kita suntikkan manual
+        if (!optionExists) {
+            console.log('⚠️ Pelanggan tidak ada di list dropdown, menambahkan manual untuk visual...');
+            const newOption = document.createElement('option');
+            newOption.value = data.id_master;
+
+            // [PATCH FIX] Lengkapi dataset agar tombol Simpan bisa membaca No KK & Parent
+            newOption.dataset.kjp = data.no_kjp;
+            newOption.dataset.ktp = data.no_ktp;
+            newOption.dataset.nama = data.nama_user;
+            newOption.dataset.kk = data.no_kk;           // <--- INI WAJIB ADA
+            newOption.dataset.parent = data.parent_name; // <--- INI JUGA WAJIB ADA
+
+            newOption.textContent = `${data.nama_user} (KJP: ${formatNomor(data.no_kjp)})`;
+            selectPelanggan.appendChild(newOption);
+        }
+
+        // Pilih nama di dropdown
+        selectPelanggan.value = data.id_master;
+
+        // 4. ISI FORM LAINNYA
+        document.getElementById('tgl_order').value = data.tgl_order;
+        document.getElementById('status_order').value = data.status_order;
+        document.getElementById('status_bayar').value = data.status_bayar;
         document.getElementById('catatan').value = data.catatan || '';
         document.getElementById('formListHarianTitle').textContent = 'Edit Transaksi';
 
-        // ========================================
-        // TAMBAHAN BARU: Clear dataset pelanggan
-        // ========================================
-        // Karena mode edit pakai dropdown, bukan checkbox
-        // Maka dataset harus dibersihkan agar tidak konflik
+        // 5. BERSIHKAN DATASET & ATUR UI
         const form = document.getElementById('formListHarian');
         if (form) {
-            delete form.dataset.pelangganNama;
-            delete form.dataset.pelangganKjp;
-            delete form.dataset.pelangganKtp;
-            delete form.dataset.pelangganKk;
-            delete form.dataset.pelangganParent;
-            console.log('✅ Dataset cleared for edit mode');
+            delete form.dataset.pelangganNama; // Hapus sisa data mode checkbox
         }
 
-        // ========================================
-        // TAMBAHAN BARU: Show/Hide field yang sesuai
-        // ========================================
-        // Mode edit menggunakan dropdown pelanggan, bukan info display
         const fieldPilihPelanggan = document.getElementById('field-pilih-pelanggan');
         const fieldInfoPelanggan = document.getElementById('field-info-pelanggan');
 
-        if (fieldPilihPelanggan) {
-            fieldPilihPelanggan.style.display = 'block';  // Show dropdown
-            console.log('✅ Dropdown pelanggan shown for edit mode');
-        }
+        if (fieldPilihPelanggan) fieldPilihPelanggan.style.display = 'block';
+        if (fieldInfoPelanggan) fieldInfoPelanggan.style.display = 'none';
 
-        if (fieldInfoPelanggan) {
-            fieldInfoPelanggan.style.display = 'none';   // Hide info
-            console.log('✅ Info pelanggan hidden for edit mode');
-        }
+        hideLoading();
 
-        // Trigger handleSelectPelanggan untuk populate info (jika ada)
-        const selectPelanggan = document.getElementById('nama-pelanggan');
-        if (selectPelanggan && typeof handleSelectPelanggan === 'function') {
-            handleSelectPelanggan();
-        }
-
+        // Tampilkan Modal
         const modal = new bootstrap.Modal(document.getElementById('formListHarianModal'));
         modal.show();
+
     } catch (error) {
+        hideLoading();
         console.error('Error editing list harian:', error);
-        showAlert('error', 'Gagal memuat transaksi');
+        showAlert('error', 'Gagal memuat transaksi: ' + error.message);
     }
 }
 
@@ -1882,11 +1895,26 @@ async function handleSaveListHarian() {
         }
 
         if (successData) {
-            bootstrap.Modal.getInstance(document.getElementById('formListHarianModal')).hide();
-            await loadListHarian(1); // Muat ulang dari halaman 1
-            await loadRekap(1); // Muat ulang rekap
-            await loadDashboard(); // Muat ulang KPI
-            showAlert('success', id ? SUCCESS_MESSAGES.DATA_UPDATED : SUCCESS_MESSAGES.DATA_CREATED);
+            const modalEl = document.getElementById('formListHarianModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+
+            showAlert('success', id ? 'Data berhasil diperbarui' : 'Data berhasil disimpan');
+
+            // [PATCH FIX] Pastikan urutan refresh berjalan lancar
+            // Gunakan Promise.all agar berjalan paralel dan lebih cepat
+            try {
+                console.log('🔄 Refreshing all data...');
+                await Promise.all([
+                    loadListHarian(currentPageListHarian), // Tetap di halaman yang sama
+                    loadRekap(1),
+                    loadDashboard() // Paksa refresh dashboard
+                ]);
+                console.log('✅ All data refreshed');
+            } catch (refreshError) {
+                console.error('⚠️ Error refreshing dashboard:', refreshError);
+                // Jangan hentikan UX meski refresh gagal
+            }
         }
 
     } catch (error) {
