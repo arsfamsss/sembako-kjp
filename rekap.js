@@ -282,15 +282,33 @@ async function showRekapDetailModal(parentName) {
 // 4. DASHBOARD STATISTICS FUNCTIONS
 // ============================================
 
-// [CRITICAL FUNCTION] Ini yang tadi error "not defined"
+// [CRITICAL FUNCTION] Menggunakan Local Date agar akurat
 async function getDashboardStatistics() {
     try {
         console.log('📊 Fetching dashboard statistics...');
 
-        const today = new Date();
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const startDate = firstDayOfMonth.toISOString().split('T')[0];
-        const endDate = today.toISOString().split('T')[0];
+        // ============================================================
+        // ✅ FIX TIMEZONE: Gunakan Waktu Lokal
+        // ============================================================
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+
+        // Fungsi helper bikin tanggal YYYY-MM-DD lokal
+        const toLocalYMD = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        // Start: Tanggal 1 bulan ini
+        const startDate = toLocalYMD(new Date(year, month, 1));
+
+        // End: Tanggal terakhir bulan ini (bukan hari ini, biar mencakup semua inputan user)
+        const endDate = toLocalYMD(new Date(year, month + 1, 0));
+
+        console.log(`📅 KPI Query Range: ${startDate} to ${endDate}`);
 
         const { data: allTransaksi, error } = await supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
@@ -301,6 +319,7 @@ async function getDashboardStatistics() {
 
         if (error) throw error;
 
+        // Hitung Statistik
         const transaksiSukses = allTransaksi.filter(t => t.status_order === 'SUKSES');
         const transaksiProses = allTransaksi.filter(t => t.status_order === 'PROSES');
         const transaksiGagal = allTransaksi.filter(t => t.status_order === 'GAGAL' || t.status_order === 'BATAL');
@@ -309,9 +328,10 @@ async function getDashboardStatistics() {
         const pembayaranLunas = allTransaksi.filter(t => t.status_bayar === 'LUNAS').length;
         const pembayaranBelumLunas = allTransaksi.filter(t => t.status_bayar === 'BELUM LUNAS').length;
 
-        const daysPassed = Math.floor((today - firstDayOfMonth) / (1000 * 60 * 60 * 24)) + 1;
-        const rataRataHarian = daysPassed > 0 ? omzetBulanIni / daysPassed : 0;
-        const rataRataTransaksiHarian = daysPassed > 0 ? transaksiSukses.length / daysPassed : 0;
+        // Hitung rata-rata harian (berdasarkan hari yang sudah berjalan)
+        const todayDate = new Date().getDate(); // Tanggal hari ini (misal tgl 23)
+        const rataRataHarian = todayDate > 0 ? omzetBulanIni / todayDate : 0;
+        const rataRataTransaksiHarian = todayDate > 0 ? transaksiSukses.length / todayDate : 0;
 
         return {
             omzetBulanIni,

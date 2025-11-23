@@ -70,55 +70,104 @@ document.addEventListener('DOMContentLoaded', function () {
 // ============================================
 
 /**
- * Load dashboard data (KPI & Statistics)
+ * Load dashboard data (KPI & Statistics) - VERSI SERVER SETTING
+ * Syarat: Setting API 'max_rows' di Supabase sudah diubah > 1000 (misal 10000)
  */
 async function loadDashboard() {
     try {
-        // 1. Load KPI Statistics
-        const stats = await getDashboardStatistics();
-        renderDashboardKPI(stats, 'dashboard-kpi');
+        console.log('📊 Loading dashboard data (Simple Fetch)...');
 
-        document.getElementById('data-master-pagination').innerHTML = '';
-        document.getElementById('list-harian-pagination').innerHTML = '';
-        document.getElementById('rekap-pagination').innerHTML = '';
+        // Reset container pagination
+        ['data-master-pagination', 'list-harian-pagination', 'rekap-pagination'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
 
-        console.log('📊 Loading charts...');
-
-        // 2. Get date range (bulan ini untuk grafik 1 & 3, 30 hari untuk grafik 2)
+        // 1. Tentukan Range Tanggal (Tgl 1 s/d Hari Ini)
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
-        const endOfMonthStr = now.toISOString().split('T')[0];
+        const year = now.getFullYear();
+        const month = now.getMonth();
 
-        // Get 30 hari ke belakang
-        const thirtyDaysAgo = new Date(now);
-        thirtyDaysAgo.setDate(now.getDate() - 29);
-        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+        const toLocalYMD = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
 
-        // 3. Fetch data
-        const { data: thisMonthData } = await supabase
+        const startDateStr = toLocalYMD(new Date(year, month, 1));
+        const endDateStr = toLocalYMD(now);
+
+        // Range 30 Hari Terakhir (untuk Chart Tren)
+        const thirtyDaysAgoDate = new Date(now);
+        thirtyDaysAgoDate.setDate(now.getDate() - 30);
+        const thirtyDaysAgoStr = toLocalYMD(thirtyDaysAgoDate);
+
+        console.log(`📅 Query Dashboard: ${startDateStr} s/d ${endDateStr}`);
+
+        // 2. Fetch Data (Cukup sekali panggil karena server limit sudah dinaikkan)
+        const { data: thisMonthData, error: err1 } = await supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*')
-            .gte('tgl_order', startOfMonthStr)
-            .lte('tgl_order', endOfMonthStr);
+            .gte('tgl_order', startDateStr)
+            .lte('tgl_order', endDateStr);
+        // Tidak perlu .limit() atau .range() lagi jika max_rows server sudah besar
 
-        const { data: last30DaysData } = await supabase
+        if (err1) throw err1;
+
+        // 3. Hitung KPI
+        const trxSukses = thisMonthData.filter(t => t.status_order === 'SUKSES');
+        const trxProses = thisMonthData.filter(t => t.status_order === 'PROSES');
+
+        // Gabung status gagal/batal/cancel
+        const trxGagal = thisMonthData.filter(t =>
+            t.status_order === 'GAGAL' ||
+            t.status_order === 'BATAL' ||
+            t.status_order === 'CANCEL'
+        );
+
+        const trxLunas = thisMonthData.filter(t => t.status_bayar === 'LUNAS');
+        const trxBelumLunas = thisMonthData.filter(t => t.status_bayar === 'BELUM LUNAS');
+
+        const hariBerjalan = now.getDate();
+        const pembagiHarian = hariBerjalan > 0 ? hariBerjalan : 1;
+
+        const stats = {
+            omzetBulanIni: trxSukses.length * 20000,
+            statusOmzet: 'Updated',
+            totalTransaksi: thisMonthData.length,
+            totalSukses: trxSukses.length,
+            totalProses: trxProses.length,
+            totalGagal: trxGagal.length,
+            pembayaranLunas: trxLunas.length,
+            pembayaranBelumLunas: trxBelumLunas.length,
+            rataRataHarian: (trxSukses.length * 20000) / pembagiHarian,
+            rataRataTransaksiHarian: trxSukses.length / pembagiHarian
+        };
+
+        if (typeof renderDashboardKPI === 'function') {
+            renderDashboardKPI(stats, 'dashboard-kpi');
+        }
+
+        // 4. Load Chart Data
+        const { data: last30DaysData, error: err2 } = await supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*')
             .gte('tgl_order', thirtyDaysAgoStr)
-            .lte('tgl_order', endOfMonthStr)
-            .eq('status_order', 'SUKSES'); // ✅ FIX: Ubah dari status_bayar ke status_order
+            .lte('tgl_order', endDateStr)
+            .eq('status_order', 'SUKSES');
 
-        // 4. Render charts
+        if (err2) throw err2;
+
         renderStatusOrderChart(thisMonthData || []);
-        renderTrendOmzetChart(last30DaysData || []);
         renderTopParentChart(thisMonthData || []);
+        renderTrendOmzetChart(last30DaysData || []);
 
-        console.log('✅ Dashboard charts loaded!');
+        console.log(`✅ Dashboard Loaded. Total Data: ${thisMonthData.length}`);
 
     } catch (error) {
-        console.error('Error loading dashboard:', error);
-        showAlert('error', `Gagal memuat dashboard: ${error.message}`);
+        console.error('❌ Error loading dashboard:', error);
+        showAlert('error', 'Gagal update dashboard: ' + error.message);
     }
 }
 
@@ -1038,10 +1087,8 @@ async function openBulkAddTransaksiModal() {
     modal.show();
 }
 
-
-
 /**
- * Simpan bulk transaksi (FIX 3.7)
+ * Simpan bulk transaksi (FIX REFRESH DASHBOARD)
  */
 async function handleSaveBulkTransaksi() {
     try {
@@ -1050,34 +1097,21 @@ async function handleSaveBulkTransaksi() {
         const statusBayar = document.getElementById('bulk-status-bayar').value;
         const catatan = document.getElementById('bulk-catatan').value;
 
-
         if (!tglOrder) {
             return showAlert('error', 'Tanggal order wajib diisi');
         }
 
-
         // Hitung tgl_ambil (H+1 dari tgl_order)
         const tglAmbil = addDaysToIsoDate(tglOrder, 1);
 
-
         showLoading(`Membuat ${selectedDataMasterIds.length} transaksi...`);
-
-        // ✅ DEBUG: Log selectedDataMasterIds sebelum query
-        console.log('🔍 DEBUG - selectedDataMasterIds:', selectedDataMasterIds);
-        console.log('🔍 DEBUG - selectedDataMasterIds.length:', selectedDataMasterIds.length);
 
         const { data: masters, error: masterError } = await supabase
             .from(CONSTANTS.TABLES.DATA_MASTER)
-            .select('id, nama_user, no_kjp, no_ktp, parent_name, no_kk') // Ambil no_kk
+            .select('id, nama_user, no_kjp, no_ktp, parent_name, no_kk')
             .in('id', selectedDataMasterIds);
 
-        // ✅ DEBUG: Log hasil query dari database
-        console.log('🔍 DEBUG - masters dari DB:', masters);
-        console.log('🔍 DEBUG - masters.length:', masters ? masters.length : 0);
-
         if (masterError) throw masterError;
-
-
 
         // Buat array transaksi
         const transactions = masters.map(master => ({
@@ -1085,8 +1119,8 @@ async function handleSaveBulkTransaksi() {
             nama_user: master.nama_user,
             no_kjp: master.no_kjp,
             no_ktp: master.no_ktp,
-            no_kk: master.no_kk, // TAMBAHKAN no_kk
-            parent_name: master.parent_name || extractParentName(master.nama_user), // Fallback
+            no_kk: master.no_kk,
+            parent_name: master.parent_name || extractParentName(master.nama_user),
             tgl_order: tglOrder,
             tgl_ambil: tglAmbil,
             status_order: statusOrder,
@@ -1094,30 +1128,31 @@ async function handleSaveBulkTransaksi() {
             catatan: catatan,
         }));
 
-
         // Simpan ke DB
         const success = await bulkAddListHarian(transactions);
 
-
         hideLoading();
-
 
         if (success) {
             bootstrap.Modal.getInstance(document.getElementById('bulkAddTransaksiModal')).hide();
             showAlert('success', `${transactions.length} transaksi baru berhasil dibuat`);
             clearSelectAllDataMaster();
-            // Pindah ke tab list harian untuk melihat hasilnya
+
+            // Pindah ke tab list harian
             const listHarianTab = document.getElementById('list-harian-tab');
             if (listHarianTab) {
                 new bootstrap.Tab(listHarianTab).show();
             }
-        }
 
+            // ✅ FIX: Refresh Data Wajib
+            await loadListHarian(1);
+            loadRekap(1);
+            loadDashboard(); // Update KPI Dashboard
+        }
 
     } catch (error) {
         hideLoading();
         console.error('Error saving bulk transaksi:', error);
-        // ✅ GANTI BARIS INI
         showAlert('error', parseSupabaseError(error));
     }
 }
@@ -1273,7 +1308,7 @@ async function handleSearchListHarian(keyword) {
               <i class="fas fa-eye"></i> Detail
             </button>
           <td class="text-center">
-            <button class="btn btn-sm btn-primary" onclick="quickStatusUpdate('${item.id}', '${item.status_bayar}')" title="Quick Status Update">
+            <button class="btn btn-sm btn-primary" onclick="quickStatusUpdate('${item.id}', '${item.status_bayar}', '${item.status_order}')" title="Quick Status Update">
               <i class="fas fa-exchange-alt"></i>
             </button>
             <button class="btn btn-sm btn-warning" onclick="editListHarian('${item.id}')" title="Edit">
@@ -1360,8 +1395,14 @@ function clearSelectAllTransaksi() {
 /**
  * Quick status update (toggle LUNAS <-> BELUM LUNAS)
  */
-async function quickStatusUpdate(id, currentStatus) {
+// [PATCH] Tambah parameter statusOrder
+async function quickStatusUpdate(id, currentStatus, statusOrder) {
     try {
+        // Cek Logika: Jika Order GAGAL/PROSES, dilarang ubah ke LUNAS
+        if (statusOrder !== 'SUKSES') {
+            return showAlert('error', '⛔ Gagal: Hanya transaksi SUKSES yang boleh diset LUNAS.');
+        }
+
         const newStatus = currentStatus === 'LUNAS' ? 'BELUM LUNAS' : 'LUNAS';
         const success = await updateStatusBayar(id, newStatus);
         if (success) {
@@ -1391,8 +1432,24 @@ async function handleBulkStatusUpdate() {
         }
 
         const updateObject = {};
-        if (statusOrder) updateObject.status_order = statusOrder;
-        if (statusBayar) updateObject.status_bayar = statusBayar;
+
+        // [PATCH LOGIC]
+        if (statusOrder) {
+            updateObject.status_order = statusOrder;
+
+            // Jika User set Order jadi GAGAL, Paksa Bayar jadi CANCEL
+            if (statusOrder === 'GAGAL' || statusOrder === 'CANCEL') {
+                updateObject.status_bayar = 'CANCEL';
+            }
+        }
+
+        // Jika user memaksa pilih status bayar LUNAS lewat dropdown, tapi ordernya GAGAL, kita timpa lagi
+        if (statusBayar) {
+            // Hanya boleh update bayar sesuai request jika logika di atas tidak memaksa CANCEL
+            if (updateObject.status_bayar !== 'CANCEL') {
+                updateObject.status_bayar = statusBayar;
+            }
+        }
 
         const success = await bulkUpdateStatus(selectedTransaksiIds, updateObject);
 
@@ -1788,10 +1845,8 @@ async function editListHarian(id) {
     }
 }
 
-
-
 /**
- * Handle save list harian (DENGAN VALIDASI)
+ * Handle save list harian (DENGAN VALIDASI & PATCH REFRESH)
  */
 async function handleSaveListHarian() {
     try {
@@ -1827,12 +1882,23 @@ async function handleSaveListHarian() {
             };
         }
 
+        // [PATCH AUTO-FIX WITH NOTIFICATION FLAG]
+        const inputStatusOrder = document.getElementById('status_order').value;
+        let inputStatusBayar = document.getElementById('status_bayar').value;
+        let isAutoCorrected = false; // Flag untuk menanda apakah sistem mengubah data
+
+        // Cek Logika: Jika Order GAGAL tapi user pilih LUNAS/BELUM LUNAS
+        if ((inputStatusOrder === 'GAGAL' || inputStatusOrder === 'CANCEL') && inputStatusBayar !== 'CANCEL') {
+            inputStatusBayar = 'CANCEL'; // Paksa ubah ke CANCEL
+            isAutoCorrected = true;      // Tandai bahwa ini diubah otomatis
+        }
+
         const formData = {
             id_master: document.getElementById('id-master').value,
             tgl_order: tglOrder,
             tgl_ambil: tglAmbil,
-            status_order: document.getElementById('status_order').value,
-            status_bayar: document.getElementById('status_bayar').value,
+            status_order: inputStatusOrder,
+            status_bayar: inputStatusBayar, // Gunakan variabel yang sudah di-validasi
             catatan: document.getElementById('catatan').value,
             // Data relasi (WAJIB NOT NULL)
             nama_user: pelangganData.nama,
@@ -1842,36 +1908,23 @@ async function handleSaveListHarian() {
             parent_name: pelangganData.parent || extractParentName(pelangganData.nama),
         };
 
-
         // --- VALIDASI INPUT ---
-        // Validasi id_master - tapi hanya jika tidak ada dataset pelanggan
         if (!formData.id_master && !form.dataset.pelangganNama) {
             return showAlert('error', 'Pilih pelanggan terlebih dahulu');
         }
 
-        // Jika menggunakan checkbox mode, pastikan ada id_master dari field hidden
         if (form.dataset.pelangganNama && !formData.id_master) {
             console.warn('⚠️ Mode checkbox tapi id_master kosong, mencoba ambil dari form');
-            // Coba ambil dari field hidden (seharusnya sudah diisi oleh openSingleTransaksiFromCheckbox)
             const idMasterField = document.getElementById('id-master');
             if (idMasterField && idMasterField.value) {
                 formData.id_master = idMasterField.value;
-                console.log('✅ id_master diambil dari hidden field:', formData.id_master);
             } else {
                 return showAlert('error', 'Data pelanggan tidak lengkap. Silakan coba lagi.');
             }
         }
 
-
-        // Validasi Not-Null (Fallback dijamin oleh extractParentName jika null)
-        if (!formData.parent_name) {
-            return showAlert('error', 'Gagal mendapatkan data parent_name. Pastikan data pelanggan di Data Master sudah lengkap.');
-        }
-        if (!formData.no_kk) {
-            return showAlert('error', 'Gagal mendapatkan data no_kk. Pastikan data pelanggan di Data Master sudah lengkap.');
-        }
-        if (!formData.no_ktp) {
-            return showAlert('error', 'Gagal mendapatkan data no_ktp. Pastikan data pelanggan di Data Master sudah lengkap.');
+        if (!formData.parent_name || !formData.no_kk || !formData.no_ktp) {
+            return showAlert('error', 'Data pelanggan tidak lengkap (KTP/KK/Parent kosong).');
         }
 
         if (!formData.tgl_order) return showAlert('error', 'Tanggal order wajib diisi');
@@ -1894,33 +1947,41 @@ async function handleSaveListHarian() {
             successData = await addListHarian(formData);
         }
 
+        // --- UPDATE DASHBOARD SETELAH SIMPAN ---
         if (successData) {
             const modalEl = document.getElementById('formListHarianModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) modal.hide();
 
-            showAlert('success', id ? 'Data berhasil diperbarui' : 'Data berhasil disimpan');
+            // [PATCH] Notifikasi Cerdas
+            if (isAutoCorrected) {
+                // Tampilkan pesan Warning/Info khusus jika ada perubahan otomatis
+                showAlert('warning',
+                    '✅ Data berhasil disimpan, namun Status Bayar otomatis diubah ke CANCEL.\n' +
+                    '⚠️ Info: Hanya order dengan status SUKSES yang boleh diset LUNAS/BELUM LUNAS.'
+                );
+            } else {
+                // Pesan sukses normal
+                showAlert('success', id ? 'Data berhasil diperbarui' : 'Data berhasil disimpan');
+            }
 
-            // [PATCH FIX] Pastikan urutan refresh berjalan lancar
-            // Gunakan Promise.all agar berjalan paralel dan lebih cepat
+            // ✅ LOGIKA REFRESH YANG BENAR (SEQUENTIAL)
             try {
-                console.log('🔄 Refreshing all data...');
-                await Promise.all([
-                    loadListHarian(currentPageListHarian), // Tetap di halaman yang sama
-                    loadRekap(1),
-                    loadDashboard() // Paksa refresh dashboard
-                ]);
-                console.log('✅ All data refreshed');
+                console.log('🔄 Refreshing data sequence...');
+                // 1. Load Tabel Harian dulu (Prioritas)
+                await loadListHarian(currentPageListHarian);
+
+                // 2. Load Dashboard & Rekap (Tanpa await agar UI responsif)
+                loadRekap(1);
+                loadDashboard();
             } catch (refreshError) {
-                console.error('⚠️ Error refreshing dashboard:', refreshError);
-                // Jangan hentikan UX meski refresh gagal
+                console.error('⚠️ Error refreshing data:', refreshError);
             }
         }
 
     } catch (error) {
         hideLoading();
         console.error('Error saving list harian:', error);
-        // ✅ GANTI BARIS INI
         showAlert('error', parseSupabaseError(error));
     }
 }
@@ -2427,8 +2488,7 @@ function handleTelegramFileUpload(event) {
 }
 
 /**
- * Handle import telegram data
- * Main function yang dipanggil saat user klik button "Import Data"
+ * Handle import telegram data (FIX REFRESH DASHBOARD)
  */
 async function handleImportTelegram() {
     const textContent = document.getElementById('telegram-text').value.trim();
@@ -2448,7 +2508,7 @@ async function handleImportTelegram() {
 
     if (!confirmed) return;
 
-    // Import data (function dari telegram-parser.js)
+    // Import data
     const result = await importTelegramData(textContent);
 
     if (result.success) {
@@ -2460,11 +2520,9 @@ async function handleImportTelegram() {
             modalInstance.hide();
         }
 
-        // Show summary dengan detail
+        // Show summary
         if (result.errors && result.errors.length > 0) {
             console.log('📋 Import Errors:', result.errors);
-
-            // Show notification dengan detail error
             const errorSummary = `
                 <strong>Import selesai dengan beberapa error:</strong><br>
                 <hr>
@@ -2473,13 +2531,17 @@ async function handleImportTelegram() {
                 <hr>
                 <small>Lihat console browser (F12) untuk detail error</small>
             `;
-
             showAlert('warning', errorSummary);
         } else {
             showAlert('success',
                 `✅ Import berhasil!\n${result.inserted} transaksi telah ditambahkan ke database.`
             );
         }
+
+        // ✅ FIX: Refresh Data Wajib setelah Import
+        await loadListHarian(1);
+        loadRekap(1);
+        loadDashboard();
     }
 }
 
