@@ -1277,6 +1277,9 @@ async function handleSearchListHarian(keyword) {
 
         let html = '';
         results.forEach((item, index) => {
+            // ✅ PATCH FIX: Definisikan rowNum agar tidak error
+            const rowNum = index + 1;
+
             let statusBayarColor;
             if (item.status_bayar === 'LUNAS') statusBayarColor = 'success';
             else if (item.status_bayar === 'BELUM LUNAS') statusBayarColor = 'danger';
@@ -1294,6 +1297,7 @@ async function handleSearchListHarian(keyword) {
           <td>
             <input type="checkbox" class="transaksi-checkbox" value="${item.id}" onchange="updateBulkSelectPanel()">
           </td>
+          <td><strong>${rowNum}</strong></td>
           <td>${item.nama_user || '(Nama tidak ditemukan)'}</td>
           <td><small>${formatNomor(item.no_kjp)}</small></td>
           <td>${formatDateToDisplay(item.tgl_order)}</td>
@@ -1305,11 +1309,7 @@ async function handleSearchListHarian(keyword) {
           </td>
           <td class="text-center">
             <button class="btn btn-sm btn-info" onclick="viewDetailTransaction('${item.id}')" title="Lihat Detail">
-              <i class="fas fa-eye"></i> Detail
-            </button>
-          <td class="text-center">
-            <button class="btn btn-sm btn-primary" onclick="quickStatusUpdate('${item.id}', '${item.status_bayar}', '${item.status_order}')" title="Quick Status Update">
-              <i class="fas fa-exchange-alt"></i>
+              <i class="fas fa-eye"></i>
             </button>
             <button class="btn btn-sm btn-warning" onclick="editListHarian('${item.id}')" title="Edit">
               <i class="fas fa-edit"></i>
@@ -1320,6 +1320,8 @@ async function handleSearchListHarian(keyword) {
           </td>
         </tr>
       `;
+
+
         });
 
         // STORE data untuk modal (PATCH 13)
@@ -1422,6 +1424,8 @@ async function handleBulkStatusUpdate() {
     try {
         const statusOrder = document.getElementById('bulk-status-order-select').value;
         const statusBayar = document.getElementById('bulk-status-bayar-select').value;
+        const tglBayar = document.getElementById('bulk-tgl-bayar').value;
+        const metodeBayar = document.getElementById('bulk-metode-bayar').value;
 
         if (!statusOrder && !statusBayar) {
             return showAlert('warning', 'Pilih minimal satu status (Order atau Bayar) untuk diubah');
@@ -1433,10 +1437,9 @@ async function handleBulkStatusUpdate() {
 
         const updateObject = {};
 
-        // [PATCH LOGIC]
+        // PATCH LOGIC
         if (statusOrder) {
             updateObject.status_order = statusOrder;
-
             // Jika User set Order jadi GAGAL, Paksa Bayar jadi CANCEL
             if (statusOrder === 'GAGAL' || statusOrder === 'CANCEL') {
                 updateObject.status_bayar = 'CANCEL';
@@ -1451,8 +1454,18 @@ async function handleBulkStatusUpdate() {
             }
         }
 
-        const success = await bulkUpdateStatus(selectedTransaksiIds, updateObject);
+        // LOGIC BARU: Update tgl_bayar & metode_bayar berdasarkan status
+        if (statusBayar === 'LUNAS') {
+            // Jika user pilih LUNAS, update tanggal & metode bayar
+            updateObject.tgl_bayar = tglBayar || null;
+            updateObject.metode_bayar = metodeBayar || null;
+        } else if (statusBayar === 'BELUM LUNAS' || statusBayar === 'CANCEL') {
+            // Jika user pilih BELUM LUNAS atau CANCEL, set NULL
+            updateObject.tgl_bayar = null;
+            updateObject.metode_bayar = null;
+        }
 
+        const success = await bulkUpdateStatus(selectedTransaksiIds, updateObject);
         if (success) {
             await loadListHarian(currentPageListHarian);
             await loadRekap(1); // Refresh rekap
@@ -1463,6 +1476,7 @@ async function handleBulkStatusUpdate() {
         console.error('Error bulk status update:', error);
     }
 }
+
 /**
  * ➕ TAMBAHAN BARU: Handle bulk delete transaksi harian
  * Dipanggil saat user klik tombol "Hapus Massal"
@@ -1783,9 +1797,12 @@ async function editListHarian(id) {
         document.getElementById('id-master').value = data.id_master;
 
         // 2. [PATCH] ISI TAMPILAN LANGSUNG DARI DATABASE (Bypass Dropdown Dependency)
-        // Ini memastikan No KJP/KTP tetap muncul meski dropdown bermasalah
-        document.getElementById('no-kjp-display').value = formatNomor(data.no_kjp);
-        document.getElementById('no-ktp-display').value = formatNomor(data.no_ktp);
+        // ✅ CEK DULU apakah element ada sebelum set value (DEFENSIVE)
+        const noKjpDisplay = document.getElementById('no-kjp-display');
+        const noKtpDisplay = document.getElementById('no-ktp-display');
+
+        if (noKjpDisplay) noKjpDisplay.value = formatNomor(data.no_kjp);
+        if (noKtpDisplay) noKtpDisplay.value = formatNomor(data.no_ktp);
 
         // 3. URUS DROPDOWN (Hanya untuk visual)
         const selectPelanggan = document.getElementById('nama-pelanggan');
@@ -1813,12 +1830,25 @@ async function editListHarian(id) {
         // Pilih nama di dropdown
         selectPelanggan.value = data.id_master;
 
-        // 4. ISI FORM LAINNYA
-        document.getElementById('tgl_order').value = data.tgl_order;
-        document.getElementById('status_order').value = data.status_order;
-        document.getElementById('status_bayar').value = data.status_bayar;
-        document.getElementById('catatan').value = data.catatan || '';
-        document.getElementById('formListHarianTitle').textContent = 'Edit Transaksi';
+        // 4. ISI FORM LAINNYA (✅ DENGAN CEK DEFENSIVE)
+        const tglOrderEl = document.getElementById('tglorder');
+        const statusOrderEl = document.getElementById('statusorder');
+        const statusBayarEl = document.getElementById('statusbayar');
+        const catatanEl = document.getElementById('catatan');
+        const formTitle = document.getElementById('formListHarianTitle');
+
+        if (tglOrderEl) tglOrderEl.value = data.tgl_order;
+        if (statusOrderEl) statusOrderEl.value = data.status_order;
+        if (statusBayarEl) statusBayarEl.value = data.status_bayar;
+        if (catatanEl) catatanEl.value = data.catatan || '';
+        if (formTitle) formTitle.textContent = 'Edit Transaksi';
+
+        // ✅ PATCH FIX: Isi Tgl Bayar & Metode Bayar
+        const tglBayarEl = document.getElementById('tgl_bayar');
+        const metodeBayarEl = document.getElementById('metode_bayar');
+
+        if (tglBayarEl) tglBayarEl.value = data.tgl_bayar || '';
+        if (metodeBayarEl) metodeBayarEl.value = data.metode_bayar || '';
 
         // 5. BERSIHKAN DATASET & ATUR UI
         const form = document.getElementById('formListHarian');
@@ -1844,6 +1874,7 @@ async function editListHarian(id) {
         showAlert('error', 'Gagal memuat transaksi: ' + error.message);
     }
 }
+
 
 /**
  * Handle save list harian (DENGAN VALIDASI & PATCH REFRESH)
@@ -1893,20 +1924,27 @@ async function handleSaveListHarian() {
             isAutoCorrected = true;      // Tandai bahwa ini diubah otomatis
         }
 
+        // [FIX] Nama properti disesuaikan dengan nama kolom Database (pakai underscore)
         const formData = {
             id_master: document.getElementById('id-master').value,
             tgl_order: tglOrder,
             tgl_ambil: tglAmbil,
             status_order: inputStatusOrder,
             status_bayar: inputStatusBayar, // Gunakan variabel yang sudah di-validasi
+
+            // ✅ PATCH FIX: Ambil ID yang benar (tanpa _edit, karena _edit milik modal Bulk)
+            tgl_bayar: document.getElementById('tgl_bayar').value || null,
+            metode_bayar: document.getElementById('metode_bayar').value || null,
+
             catatan: document.getElementById('catatan').value,
-            // Data relasi (WAJIB NOT NULL)
+            // Data relasi WAJIB NOT NULL
             nama_user: pelangganData.nama,
             no_kjp: sanitizeNumber(pelangganData.kjp),
             no_ktp: sanitizeNumber(pelangganData.ktp),
             no_kk: sanitizeNumber(pelangganData.kk),
             parent_name: pelangganData.parent || extractParentName(pelangganData.nama),
         };
+
 
         // --- VALIDASI INPUT ---
         if (!formData.id_master && !form.dataset.pelangganNama) {
@@ -2602,6 +2640,22 @@ function viewDetailTransaction(itemId) {
     document.getElementById('detailTransactionModal-title').textContent =
         'Detail Transaksi - ' + (item.nama_user || 'Unknown');
 
+    // ✅ PENTING: Siapkan HTML info pembayaran (hanya tampil jika LUNAS)
+    // ✅ HARUS DIDEKLARASIKAN SEBELUM digunakan di template literal
+    let infoPembayaranHTML = '';
+    if (item.status_bayar === 'LUNAS') {
+        infoPembayaranHTML = `
+            <div class="detail-row">
+                <div class="detail-label">Tanggal Bayar</div>
+                <div class="detail-value">${item.tgl_bayar ? formatDateToDisplay(item.tgl_bayar) : '-'}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Metode Bayar</div>
+                <div class="detail-value">${item.metode_bayar || '-'}</div>
+            </div>
+        `;
+    }
+
     // Set modal body content
     document.getElementById('detailTransactionModal-body').innerHTML = `
         <div class="row">
@@ -2636,6 +2690,7 @@ function viewDetailTransaction(itemId) {
                     <div class="detail-label">Status Bayar</div>
                     <div class="detail-value"><span class="badge bg-danger">${item.status_bayar}</span></div>
                 </div>
+                ${infoPembayaranHTML}
             </div>
         </div>
     `;
@@ -2643,12 +2698,12 @@ function viewDetailTransaction(itemId) {
     // Show modal using Bootstrap
     const detailModal = new bootstrap.Modal(document.getElementById('detailTransactionModal'));
     detailModal.show();
-
 }
 
 // ============================================================
 // ✅ ADDED - IMPORT CSV DATA MASTER FUNCTIONS
 // ============================================================
+
 
 /**
  * Open modal for CSV import

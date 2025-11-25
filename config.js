@@ -57,12 +57,20 @@ const CONSTANTS = {
     STATUS_BAYAR: {
         LUNAS: 'LUNAS',
         BELUM_LUNAS: 'BELUM LUNAS',
-        CANCEL: 'CANCEL',
+        CANCEL: 'CANCEL'
+    },
+
+    // Metode Bayar
+    PAYMENT_METHODS: {
+        TUNAI: 'TUNAI',
+        TF_BCA_FENDI: 'TF BCA FENDI',
+        TF_BCA_TARI: 'TF BCA TARI'
     },
 
     // Validasi
     VALIDATION: {
-        KJP_MIN: 12,
+
+        KJP_MIN: 16,
         KJP_MAX: 18,
         KTP_LENGTH: 16,
         KK_LENGTH: 16,
@@ -88,7 +96,7 @@ const ERROR_MESSAGES = {
     NAMA_MAX_LENGTH: `Nama user maksimal ${CONSTANTS.VALIDATION.NAMA_MAX} karakter`,
 
     KJP_REQUIRED: 'No. KJP wajib diisi',
-    KJP_FORMAT: 'No. KJP harus 12-18 digit',
+    KJP_FORMAT: 'No. KJP harus 16-18 digit', // <--- Ubah jadi 16
     KJP_DUPLICATE: 'No. KJP sudah terdaftar',
 
     KTP_REQUIRED: 'No. KTP wajib diisi',

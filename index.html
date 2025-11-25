@@ -285,23 +285,32 @@
                             <div class="col-lg-8 text-lg-end">
                                 <select id="bulk-status-order-select" class="form-select d-inline-block"
                                     style="width: auto;">
-                                    <option value="">Ubah Status Order:</option>
+                                    <option value="">Ubah Status Order</option>
                                     <option value="SUKSES">SUKSES</option>
                                     <option value="PROSES">PROSES</option>
                                     <option value="GAGAL">GAGAL</option>
                                 </select>
-
                                 <select id="bulk-status-bayar-select"
                                     class="form-select d-inline-block ms-lg-2 mt-2 mt-lg-0" style="width: auto;">
-                                    <option value="">Ubah Status Bayar:</option>
+                                    <option value="">Ubah Status Bayar</option>
                                     <option value="LUNAS">LUNAS</option>
                                     <option value="BELUM LUNAS">BELUM LUNAS</option>
                                     <option value="CANCEL">CANCEL</option>
                                 </select>
-
+                                <input type="date" id="bulk-tgl-bayar"
+                                    class="form-control d-inline-block ms-lg-2 mt-2 mt-lg-0" style="width: auto;"
+                                    placeholder="Tgl Bayar">
+                                <select id="bulk-metode-bayar" class="form-select d-inline-block ms-lg-2 mt-2 mt-lg-0"
+                                    style="width: auto;">
+                                    <option value="">Metode Bayar</option>
+                                    <option value="TUNAI">TUNAI</option>
+                                    <option value="TF BCA FENDI">TF BCA FENDI</option>
+                                    <option value="TF BCA TARI">TF BCA TARI</option>
+                                </select>
                                 <button class="btn btn-warning ms-lg-2 mt-2 mt-lg-0" onclick="handleBulkStatusUpdate()">
                                     <i class="fas fa-save"></i> Update
                                 </button>
+
                                 <button class="btn btn-danger ms-lg-2 mt-2 mt-lg-0"
                                     onclick="handleBulkDeleteListHarian()">
                                     <i class="fas fa-trash"></i> Hapus Massal
@@ -509,6 +518,21 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tgl_bayar" class="form-label">Tanggal Bayar</label>
+                                <input type="date" class="form-control" id="tgl_bayar">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="metode_bayar" class="form-label">Metode Bayar</label>
+                                <select class="form-select" id="metode_bayar">
+                                    <option value="">-- Pilih Metode --</option>
+                                    <option value="TUNAI">TUNAI</option>
+                                    <option value="TF BCA FENDI">TF BCA FENDI</option>
+                                    <option value="TF BCA TARI">TF BCA TARI</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="mb-3">
                             <label for="catatan" class="form-label">Catatan</label>
                             <textarea class="form-control" id="catatan" rows="3"
@@ -557,18 +581,37 @@
 
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="bulk-status-bayar" class="form-label">Status Bayar <span
+                                <label for="status_bayar" class="form-label">Status Bayar <span
                                         class="text-danger">*</span></label>
-                                <select class="form-select" id="bulk-status-bayar" required>
+                                <select class="form-select" id="status_bayar" required>
                                     <option value="LUNAS">LUNAS</option>
-                                    <option value="BELUM LUNAS" selected>BELUM LUNAS</option>
+                                    <option value="BELUM LUNAS">BELUM LUNAS</option>
                                     <option value="CANCEL">CANCEL</option>
                                 </select>
                             </div>
                         </div>
 
+                        <!-- Input Tanggal & Metode Bayar (untuk edit) -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tgl_bayar_edit" class="form-label">Tanggal Bayar</label>
+                                <input type="date" class="form-control" id="tgl_bayar_edit">
+                                <small class="text-muted">Kosongkan jika belum bayar</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="metode_bayar_edit" class="form-label">Metode Bayar</label>
+                                <select class="form-select" id="metode_bayar_edit">
+                                    <option value="">-- Pilih Metode --</option>
+                                    <option value="TUNAI">TUNAI</option>
+                                    <option value="TF BCA FENDI">TF BCA FENDI</option>
+                                    <option value="TF BCA TARI">TF BCA TARI</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label for="bulk-catatan" class="form-label">Catatan</label>
+                            <label for="catatan" class="form-label">Catatan</label>
+
                             <textarea class="form-control" id="bulk-catatan" rows="3"
                                 placeholder="Tambahan informasi (optional)"></textarea>
                         </div>
