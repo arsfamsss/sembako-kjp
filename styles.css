@@ -1498,3 +1498,50 @@ div.tab-pane.show {
     animation-play-state: paused;
     cursor: default;
 }
+
+/* ... kode animasi running text ... */
+@keyframes modern-marquee {
+    0% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    100% {
+        transform: translate3d(-100%, 0, 0);
+    }
+}
+
+.navbar-brand:hover .running-text-content {
+    animation-play-state: paused;
+    cursor: default;
+}
+
+/* ============================================
+   TAMBAHAN: STYLE HALAMAN LOGIN
+   ============================================ */
+#login-screen {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f2f5;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    padding: 2.5rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Sembunyikan aplikasi saat belum login */
+#app-screen {
+    display: none;
+}
