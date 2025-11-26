@@ -429,13 +429,15 @@ function renderDashboardKPI(stats, containerId = 'dashboard-kpi') {
   `;
 }
 
-// ============================================
-// 5. EXPORT & DOWNLOAD FUNCTIONS (WITH PATCH)
-// ============================================
-
+/**
+ * DOWNLOAD REKAP TXT (VERSI WHATSAPP FORMAT)
+ * - Menggunakan simbol *bintang* untuk Bold
+ * - Ditambah Emoji biar cantik
+ * - Format Rapi untuk layar HP
+ */
 async function downloadRekapTXT() {
     try {
-        showLoading('Menyiapkan file TXT...');
+        showLoading('Menyiapkan laporan WA...');
 
         const detailData = await getAllRekapDetail();
 
@@ -446,49 +448,90 @@ async function downloadRekapTXT() {
         }
 
         const groupedData = {};
+
         detailData.forEach(item => {
             const parentName = item.parent_name || item.nama_user || 'Tanpa Nama';
-
             if (!groupedData[parentName]) {
-                groupedData[parentName] = { count: 0, total: 0 };
+                groupedData[parentName] = [];
             }
-            groupedData[parentName].count += 1;
-
-            const nilai = Number(item.nominal);
-            const nominalFix = !isNaN(nilai) && nilai !== 0 ? nilai : 20000;
-            groupedData[parentName].total += nominalFix;
+            groupedData[parentName].push(item);
         });
+
+        // Setup Tanggal
+        const d = new Date();
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const today = `${day}/${month}/${year}`;
+
+        // HEADER WA
+        let txtContent = "📊 *LAPORAN HUTANG BELUM LUNAS* 📊\n";
+        txtContent += `📅 Tanggal Cetak: ${today}\n\n`;
 
         const sortedParents = Object.keys(groupedData).sort();
-        let txtContent = "";
+
+        let grandTotalUang = 0;
+        let grandTotalTrx = 0;
 
         sortedParents.forEach(parent => {
-            const data = groupedData[parent];
-            const formattedRupiah = formatCurrency(data.total);
+            const items = groupedData[parent];
+            let subtotalUang = 0;
 
-            txtContent += `Total Trx ${parent} = ${data.count} Transaksi\n`;
-            txtContent += `Total Hutang ${parent} = ${formattedRupiah}\n\n`;
+            // NAMA PELANGGAN (Pakai Icon Orang)
+            // Menggunakan * supaya nama pelanggan BOLD
+            txtContent += `👤 *PELANGGAN: ${parent.toUpperCase()}*\n`;
+
+            items.forEach((item, index) => {
+                const tgl = item.tgl_transaksi ? formatDateToDisplay(item.tgl_transaksi) : '-';
+                let rawNama = item.nama_user || '-';
+
+                // Ambil nama dalam kurung
+                let cleanNama = rawNama;
+                const match = rawNama.match(/\(([^)]+)\)/);
+                if (match && match[1]) {
+                    cleanNama = match[1].trim();
+                }
+
+                // Hitung Nominal
+                const nominal = Number(item.nominal);
+                const nominalFix = !isNaN(nominal) && nominal !== 0 ? nominal : 20000;
+                subtotalUang += nominalFix;
+
+                // Format Item: "1. 07/11/2025 - Nama"
+                const nomor = (index + 1).toString() + ".";
+                txtContent += `${nomor} ${tgl} - ${cleanNama}\n`;
+            });
+
+            // TOTAL PER PELANGGAN (BOLD DENGAN BINTANG)
+            const totalRp = formatCurrency(subtotalUang);
+
+            // Format: *💰 TOTAL: 5 Trx = Rp 100.000*
+            txtContent += `*💰 TOTAL: ${items.length} Trx = ${totalRp}*\n\n`;
+
+            grandTotalUang += subtotalUang;
+            grandTotalTrx += items.length;
         });
+
+        // GRAND TOTAL DI BAWAH (BOLD JUGA)
+        txtContent += "----------------------------------\n";
+        txtContent += `*🏆 GRAND TOTAL: ${formatCurrency(grandTotalUang)}*\n`;
+        txtContent += `*📝 TOTAL TRANSAKSI: ${grandTotalTrx}*\n`;
+        txtContent += "----------------------------------\n";
 
         hideLoading();
 
         const element = document.createElement('a');
         const file = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
-
-        // UBAH FORMAT TANGGAL JADI DD-MM-YYYY
-        const d = new Date();
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        const today = `${day}-${month}-${year}`;
+        const filenameDate = `${day}-${month}-${year}`;
 
         element.href = URL.createObjectURL(file);
-        element.download = `Rekap_Hutang_${today}.txt`; // Hasil: Rekap_Hutang_22-11-2025.txt
+        element.download = `Laporan_WA_${filenameDate}.txt`;
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
 
-        showAlert('success', 'File TXT berhasil didownload');
+        showAlert('success', 'Laporan WA berhasil didownload');
+
     } catch (error) {
         hideLoading();
         console.error('Error download TXT:', error);
