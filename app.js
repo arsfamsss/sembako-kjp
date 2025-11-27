@@ -343,24 +343,40 @@ function renderTopParentChart(data) {
     try {
         const parentStats = {};
         data.forEach(d => {
+            // ✅ PATCH: Normalisasi parent_name - trim spasi dan lowercase untuk comparison
             let parent = d.parent_name;
-            if (!parent || parent.trim() === '') {
-                parent = d.nama_user ? extractParentName(d.nama_user) : 'Tanpa Nama';
+            if (parent) {
+                parent = parent.trim().toLowerCase(); // Normalisasi: trim + lowercase
+            }
+
+            // Fallback ke nama_user jika parent kosong (setelah normalisasi)
+            if (!parent) {
+                const extractedName = d.nama_user ? extractParentName(d.nama_user) : 'Tanpa Nama';
+                parent = extractedName.trim().toLowerCase(); // Normalisasi juga
             }
 
             if (!parentStats[parent]) parentStats[parent] = { omzet: 0, count: 0 };
-
             if (d.status_order === 'SUKSES') {
                 parentStats[parent].omzet += 20000;
                 parentStats[parent].count += 1;
             }
         });
 
-        // Ambil Top 20
-        const topParents = Object.entries(parentStats)
+        // ✅ PATCH: Deduplikasi ulang untuk GROUP FINAL sebelum Top 20
+        const dedupedStats = {};
+        Object.keys(parentStats).forEach(key => {
+            const normalized = key.trim().toLowerCase(); // Normalisasi ulang key
+            if (!dedupedStats[normalized]) {
+                dedupedStats[normalized] = parentStats[key]; // Gunakan data yang sudah terakum
+            }
+        });
+
+        // Ambil Top 20 dari data yang sudah CLEAN & DEDUPLICATE
+        const topParents = Object.entries(dedupedStats)
             .map(([name, stats]) => ({ name, ...stats }))
             .sort((a, b) => b.omzet - a.omzet)
             .slice(0, 20);
+
 
         if (topParents.length === 0) {
             console.warn('⚠️ No parent data for chart');
