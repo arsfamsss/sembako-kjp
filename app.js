@@ -334,48 +334,40 @@ function renderTrendOmzetChart(data) {
     }
 }
 
-/**
- * Grafik 3: Top 20 Keluarga (Omzet Terbanyak) - FINAL VERSION
- * - Font Lebih Besar
- * - Ada Label Jumlah Transaksi di Atas Batang
- */
+
+// Grafik 3: Top 20 Keluarga Omzet Terbanyak
 function renderTopParentChart(data) {
     try {
         const parentStats = {};
+
         data.forEach(d => {
-            // ✅ PATCH: Normalisasi parent_name - trim spasi dan lowercase untuk comparison
-            let parent = d.parent_name;
-            if (parent) {
-                parent = parent.trim().toLowerCase(); // Normalisasi: trim + lowercase
+            // PERBAIKAN: Ekstrak parent DULU, baru normalisasi
+            let parentRaw = d.parent_name;
+
+            // Jika kolom parent_name kosong, ekstrak dari nama_user
+            if (!parentRaw || parentRaw.trim() === '') {
+                parentRaw = d.nama_user ? extractParentName(d.nama_user) : 'Tanpa Nama';
             }
 
-            // Fallback ke nama_user jika parent kosong (setelah normalisasi)
-            if (!parent) {
-                const extractedName = d.nama_user ? extractParentName(d.nama_user) : 'Tanpa Nama';
-                parent = extractedName.trim().toLowerCase(); // Normalisasi juga
+            // Normalisasi: UPPERCASE + trim + hapus spasi ganda
+            const parentNormalized = parentRaw.trim().toUpperCase().replace(/\s+/g, ' ');
+
+            if (!parentStats[parentNormalized]) {
+                parentStats[parentNormalized] = { omzet: 0, count: 0 };
             }
 
-            if (!parentStats[parent]) parentStats[parent] = { omzet: 0, count: 0 };
             if (d.status_order === 'SUKSES') {
-                parentStats[parent].omzet += 20000;
-                parentStats[parent].count += 1;
+                parentStats[parentNormalized].omzet += 20000;
+                parentStats[parentNormalized].count += 1;
             }
         });
 
-        // ✅ PATCH: Deduplikasi ulang untuk GROUP FINAL sebelum Top 20
-        const dedupedStats = {};
-        Object.keys(parentStats).forEach(key => {
-            const normalized = key.trim().toLowerCase(); // Normalisasi ulang key
-            if (!dedupedStats[normalized]) {
-                dedupedStats[normalized] = parentStats[key]; // Gunakan data yang sudah terakum
-            }
-        });
-
-        // Ambil Top 20 dari data yang sudah CLEAN & DEDUPLICATE
-        const topParents = Object.entries(dedupedStats)
+        // Ambil Top 20 dari parentStats (sudah dinormalisasi dari awal)
+        const topParents = Object.entries(parentStats)  // ← DIPERBAIKI: pakai parentStats
             .map(([name, stats]) => ({ name, ...stats }))
             .sort((a, b) => b.omzet - a.omzet)
             .slice(0, 20);
+
 
 
         if (topParents.length === 0) {
@@ -2110,49 +2102,50 @@ async function exportListHarian() {
 // REKAP FUNCTIONS (PATCHED - EXPANDED DETAIL VIEW)
 // ============================================
 
+
 /**
  * 🔄 Load rekap belum lunas - DETAIL VIEW (PATCHED)
  * Mengambil semua detail transaksi per keluarga (bukan summary)
  */
 async function loadRekap(page = 1) {
     try {
+        console.log('📥 Loading rekap dengan detail view...');
         currentPageRekap = page;
 
-        // ✅ PERUBAHAN: Ambil ALL DETAIL (bukan getRekapSummary)
-        console.log('📥 Loading rekap dengan detail view...');
-        const detailResult = await getAllRekapDetail();
+        // Clear pagination rekap
+        document.getElementById('data-master-pagination').innerHTML = '';
+        document.getElementById('list-harian-pagination').innerHTML = '';
 
-        // ✅ RENDER dengan detail data
-        renderRekapTable(detailResult, 'rekap-table-body');
+        // CEK apakah fungsi sudah tersedia dari rekap.js
+        if (typeof window.getAllRekapDetail !== 'function') {
+            throw new Error('Fungsi getAllRekapDetail belum dimuat dari rekap.js');
+        }
 
-        // ⚠️ NOTA: Detail view tidak perlu pagination (semua data ditampilkan)
-        document.getElementById('rekap-pagination').innerHTML = '';
+        if (typeof window.renderRekapTable !== 'function') {
+            throw new Error('Fungsi renderRekapTable belum dimuat dari rekap.js');
+        }
 
-        // 🔧 FIX BARU: POSISIKAN HEADER KE ATAS
-        setTimeout(() => {
-            // Cari header row di tab rekap
-            const rekapTab = document.getElementById('rekap');
-            const headerRow = rekapTab?.querySelector('.row:first-child');
+        // Panggil fungsi dari window (sudah di-export dari rekap.js)
+        const allData = await window.getAllRekapDetail();
 
-            if (headerRow) {
-                // Scroll ke header dengan smooth
-                headerRow.scrollIntoView({ block: 'start', behavior: 'auto' });
+        // Render ke table
+        window.renderRekapTable(allData, 'rekap-table-body');
 
-                // Force scroll ke top absolute untuk guarantee
-                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-            }
-        }, 50);
+        console.log('✅ Rekap loaded successfully');
 
     } catch (error) {
-        console.error('Error loading rekap:', error);
-        showAlert('error', 'Gagal memuat rekap: ' + error.message);
+        console.error('❌ Error loading rekap:', error);
+        showAlert('error', `Gagal memuat rekap: ${error.message}`);
     }
 }
 
 
 
+
+
 /**
  * ✅ FIXED: Render rekap table - EXPANDED DETAIL VIEW (PROFESSIONAL STYLING)
+ * PATCH: Tambah normalisasi parent_name untuk grouping
  */
 function renderRekapTable(detailData, containerId = 'rekap-table-body') {
     const container = document.getElementById(containerId);
@@ -2161,11 +2154,13 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
         return;
     }
 
+
     // ============================================================
     // 🟢 PATCH FIX: HITUNG GRAND TOTAL SUMMARY (HEADER)
     // ============================================================
     let grandTotalTrx = 0;
     let grandTotalNominal = 0;
+
 
     if (detailData && detailData.length > 0) {
         detailData.forEach(item => {
@@ -2173,14 +2168,17 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
             const nominal = Number(item.nominal);
             const nominalValid = !isNaN(nominal) ? nominal : 20000;
 
+
             grandTotalTrx += 1;
             grandTotalNominal += nominalValid;
         });
     }
 
+
     // Update Element HTML (Box Biru di atas Tabel)
     const elTrx = document.getElementById('grand-total-trx');
     const elNominal = document.getElementById('grand-total-nominal');
+
 
     if (elTrx) {
         elTrx.textContent = grandTotalTrx + " Transaksi"; // Update teks jumlah transaksi
@@ -2192,10 +2190,12 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
     // 🟢 END PATCH
     // ============================================================
 
+
     // Clear container
     while (container.firstChild) {
         container.removeChild(container.firstChild);
     }
+
 
     // 🔴 Jika tidak ada data
     if (!detailData || detailData.length === 0) {
@@ -2210,31 +2210,51 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
         return;
     }
 
-    // 🟢 GROUP data by parent_name
+
+    // ============================================================
+    // 🟢 PATCH FIX V2: GROUP data dengan NORMALISASI parent_name
+    // ============================================================
     const groupedData = {};
     detailData.forEach(item => {
-        if (!groupedData[item.parent_name]) {
-            groupedData[item.parent_name] = [];
+        // EKSTRAK parent dari parent_name atau nama_user
+        let parentRaw = item.parent_name;
+        if (!parentRaw || parentRaw.trim() === '') {
+            parentRaw = item.nama_user ? extractParentName(item.nama_user) : 'Tanpa Nama';
         }
-        groupedData[item.parent_name].push(item);
+
+        // NORMALISASI: UPPERCASE + trim + hapus spasi ganda
+        const parentKey = parentRaw.trim().toUpperCase().replace(/\s+/g, ' ');
+
+        if (!groupedData[parentKey]) {
+            groupedData[parentKey] = [];
+        }
+        groupedData[parentKey].push(item);
     });
+    // ============================================================
+    // 🟢 END PATCH V2
+    // ============================================================
+
 
     // 🟢 Sort nama keluarga alphabetically
     const sortedParents = Object.keys(groupedData).sort();
     let globalNo = 1;
 
+
     console.log(`📊 Rendering ${sortedParents.length} keluarga dengan professional styling`);
+
 
     // 🟢 RENDER per keluarga dengan subtotal
     sortedParents.forEach(parentName => {
         const transactions = groupedData[parentName];
         let subtotal = 0;
 
+
         // 🟢 Render semua transaksi per anak
         transactions.forEach((item) => {
             const row = document.createElement('tr');
             const nominal = item.nominal || 20000;
             subtotal += nominal;
+
 
             row.innerHTML = `
                 <td>${globalNo}</td>
@@ -2246,6 +2266,7 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
             container.appendChild(row);
             globalNo++;
         });
+
 
         // 🟢 Row TOTAL TRANSAKSI per keluarga (BARU)
         const trxCountRow = document.createElement('tr');
@@ -2260,6 +2281,7 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
         `;
         container.appendChild(trxCountRow);
 
+
         // 🟢 Row TOTAL HUTANG per keluarga - PROFESSIONAL STYLE
         const subtotalRow = document.createElement('tr');
         subtotalRow.className = 'rekap-subtotal-row';
@@ -2273,6 +2295,7 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
         `;
         container.appendChild(subtotalRow);
 
+
         // 🟢 Spacing row antar keluarga
         const spacerRow = document.createElement('tr');
         spacerRow.className = 'rekap-spacer';
@@ -2280,8 +2303,10 @@ function renderRekapTable(detailData, containerId = 'rekap-table-body') {
         container.appendChild(spacerRow);
     });
 
+
     console.log(`✅ Render selesai. Total row: ${globalNo - 1}`);
 }
+
 
 
 /**
@@ -2292,14 +2317,18 @@ async function viewRekapDetail(parentName) {
     try {
         console.log('📋 Opening rekap detail for:', parentName);
 
+
         // Ambil data detail dari VIEW
         const details = await getRekapDetailByParent(parentName);
+
 
         // ✅ FIX: Hitung total dari VIEW (bukan hardcode)
         const totalHutang = details.reduce((sum, item) => sum + (item.nominal || 20000), 0);
 
+
         // Update modal title
         document.getElementById('rekap-detail-title').textContent = `Detail: ${parentName}`;
+
 
         // Render table body
         let html = '';
@@ -2315,20 +2344,25 @@ async function viewRekapDetail(parentName) {
             `;
         });
 
+
         document.getElementById('rekap-detail-table-body').innerHTML = html;
+
 
         // ✅ FIX: Update total hutang di modal
         document.getElementById('total-hutang-modal').textContent = formatCurrency(totalHutang);
 
+
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('rekapDetailModal'));
         modal.show();
+
 
     } catch (error) {
         console.error('Error viewing rekap detail:', error);
         showAlert('error', 'Gagal memuat detail rekap');
     }
 }
+
 
 
 /**
@@ -2342,10 +2376,17 @@ async function handleSearchRekap(keyword) {
             return;
         }
 
+
         console.log('🔍 Searching rekap untuk:', keyword);
 
-        // Cari di REKAP_DETAIL
-        const results = await searchRekap(keyword);
+
+        // Cari di REKAP_DETAIL menggunakan fungsi dari rekap.js
+        if (typeof window.searchRekap !== 'function') {
+            throw new Error('Fungsi searchRekap belum dimuat dari rekap.js');
+        }
+
+        const results = await window.searchRekap(keyword);
+
 
         if (!results || results.length === 0) {
             document.getElementById('rekap-table-body').innerHTML = `
@@ -2359,11 +2400,14 @@ async function handleSearchRekap(keyword) {
             return;
         }
 
+
         // 🟢 RENDER hasil search dengan expanded view
-        renderRekapTable(results, 'rekap-table-body');
+        window.renderRekapTable(results, 'rekap-table-body');
         document.getElementById('rekap-pagination').innerHTML = ''; // Tidak perlu pagination
 
+
         console.log(`✅ Found ${results.length} transaksi`);
+
 
     } catch (error) {
         console.error('Error searching rekap:', error);
@@ -2372,9 +2416,11 @@ async function handleSearchRekap(keyword) {
 }
 
 
+
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
+
 
 /**
  * Render pagination controls

@@ -787,17 +787,15 @@ Contoh:
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+    <!-- Load scripts dengan urutan yang benar -->
     <script src="config.js"></script>
     <script src="utils.js"></script>
+    <script src="auth.js"></script>
     <script src="data-master.js"></script>
     <script src="list-harian.js"></script>
     <script src="rekap.js"></script>
-
-    <script src="auth.js"></script>
-
-    <script src="app.js"></script>
     <script src="telegram-parser.js"></script>
-
+    <script src="app.js"></script> <!-- App.js HARUS TERAKHIR -->
 </body>
 
 </html>

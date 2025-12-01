@@ -1,5 +1,5 @@
 // ============================================
-// rekap-v2.js (FINAL FULL VERSION - FIXED)
+// rekap-v2.js (FINAL FULL VERSION - FIXED STRUCTURE)
 // Termasuk: Dashboard Stats, Rekap Table (Grand Total), & Download TXT Rapi
 // ============================================
 
@@ -56,7 +56,6 @@ async function getRekapDetailByParent(parentName) {
     }
 }
 
-// [CRITICAL FUNCTION] Ini yang tadi error "not defined"
 async function getAllRekapDetail() {
     try {
         console.log('📥 Fetching all rekap detail...');
@@ -97,7 +96,7 @@ async function searchRekap(keyword) {
 }
 
 // ============================================
-// 2. RENDERING FUNCTIONS (WITH PATCH)
+// 2. RENDERING FUNCTIONS
 // ============================================
 
 function renderRekapTable(rekapData, containerId = 'rekap-table-body') {
@@ -107,39 +106,53 @@ function renderRekapTable(rekapData, containerId = 'rekap-table-body') {
         return;
     }
 
-    // [PATCH FIX V2] HITUNG GRAND TOTAL (DENGAN LOGGING)
+    // [PATCH FIX] HITUNG GRAND TOTAL
     let grandTotalTrx = 0;
     let grandTotalNominal = 0;
+    const groupedByParent = {};
 
     if (rekapData && rekapData.length > 0) {
         console.log(`📊 Menghitung total dari ${rekapData.length} baris data...`);
-        rekapData.forEach(item => {
-            // Paksa konversi angka agar tidak error
-            const nominal = Number(item.nominal);
-            const nominalValid = !isNaN(nominal) ? nominal : 20000; // Default 20rb jika null/error
 
-            grandTotalTrx += 1; // Asumsi mode detail = 1 baris 1 transaksi
+        rekapData.forEach(item => {
+            // EKSTRAK parent
+            let parentRaw = item.parent_name;
+            if (!parentRaw || parentRaw.trim() === '') {
+                parentRaw = item.nama_user ? extractParentName(item.nama_user) : 'Tanpa Nama';
+            }
+
+            // NORMALISASI: UPPERCASE + trim + hapus spasi ganda
+            const parentKey = parentRaw.trim().toUpperCase().replace(/\s+/g, ' ');
+
+            // Grouping
+            if (!groupedByParent[parentKey]) {
+                groupedByParent[parentKey] = {
+                    transactions: [],
+                    totalHutang: 0,
+                    totalTrx: 0
+                };
+            }
+
+            const nominal = Number(item.nominal);
+            const nominalValid = !isNaN(nominal) ? nominal : 20000;
+
+            groupedByParent[parentKey].transactions.push(item);
+            groupedByParent[parentKey].totalHutang += nominalValid;
+            groupedByParent[parentKey].totalTrx += 1;
+
+            grandTotalTrx += 1;
             grandTotalNominal += nominalValid;
         });
-    } else {
-        console.log('⚠️ Data rekap kosong atau belum dimuat');
     }
 
     // Update Elemen HTML Dashboard Summary
     const elTrx = document.getElementById('grand-total-trx');
     const elNominal = document.getElementById('grand-total-nominal');
 
-    if (elTrx) {
-        elTrx.textContent = grandTotalTrx + " Transaksi";
-    } else {
-        console.warn('❌ Element ID "grand-total-trx" tidak ditemukan di HTML. Pastikan patch index.html sudah diterapkan.');
-    }
+    if (elTrx) elTrx.textContent = grandTotalTrx + " Transaksi";
+    if (elNominal) elNominal.textContent = formatCurrency(grandTotalNominal);
 
-    if (elNominal) {
-        elNominal.textContent = formatCurrency(grandTotalNominal);
-    }
-
-    // Clear container (Hapus isi tabel lama)
+    // Clear container
     while (container.firstChild) {
         container.removeChild(container.firstChild);
     }
@@ -156,24 +169,29 @@ function renderRekapTable(rekapData, containerId = 'rekap-table-body') {
     }
 
     // Render Rows
-    rekapData.forEach((item, index) => {
+    const sortedParents = Object.keys(groupedByParent).sort();
+    let rowIndex = 0;
+
+    sortedParents.forEach(parentKey => {
+        const group = groupedByParent[parentKey];
+        rowIndex++;
+
+        const escapedParentName = parentKey.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+        // Ambil range tanggal
+        const tglList = group.transactions.map(t => t.tgl_transaksi).filter(t => t).sort();
+        const displayTglPertama = tglList.length > 0 ? formatDateToDisplay(tglList[0]) : '-';
+        const displayTglTerakhir = tglList.length > 0 ? formatDateToDisplay(tglList[tglList.length - 1]) : '-';
+
+        const uniqueChildren = [...new Set(group.transactions.map(t => t.nama_user))].length;
+
         const row = document.createElement('tr');
-        const escapedParentName = item.parent_name ? item.parent_name.replace(/'/g, "\\'").replace(/"/g, '&quot;') : '';
-
-        const displayName = item.parent_name || item.nama_user || '-';
-        const displayJmlAnak = item.jumlah_anak || 1;
-        const displayJmlTrx = item.jumlah_transaksi !== undefined ? item.jumlah_transaksi : 1;
-        const displayHutang = item.total_hutang !== undefined ? item.total_hutang : (item.nominal || 20000);
-
-        const displayTglPertama = item.tgl_transaksi_pertama ? formatDateToDisplay(item.tgl_transaksi_pertama) : (item.tgl_transaksi ? formatDateToDisplay(item.tgl_transaksi) : '-');
-        const displayTglTerakhir = item.tgl_transaksi_terakhir ? formatDateToDisplay(item.tgl_transaksi_terakhir) : '-';
-
         row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><strong>${displayName}</strong></td>
-            <td class="text-center">${displayJmlAnak}</td>
-            <td class="text-center"><span class="badge bg-warning">${displayJmlTrx}</span></td>
-            <td class="text-right"><strong>${formatCurrency(displayHutang)}</strong></td>
+            <td>${rowIndex}</td>
+            <td><strong>${parentKey}</strong></td>
+            <td class="text-center">${uniqueChildren}</td>
+            <td class="text-center"><span class="badge bg-warning">${group.totalTrx}</span></td>
+            <td class="text-right"><strong>${formatCurrency(group.totalHutang)}</strong></td>
             <td><small>${displayTglPertama}</small></td>
             <td><small>${displayTglTerakhir}</small></td>
             <td class="text-center">
@@ -184,7 +202,7 @@ function renderRekapTable(rekapData, containerId = 'rekap-table-body') {
         `;
         container.appendChild(row);
     });
-}
+} // ✅ SEKARANG SUDAH ADA KURUNG KURAWAL PENUTUP
 
 // ============================================
 // 3. UI HELPER FUNCTIONS
@@ -279,166 +297,12 @@ async function showRekapDetailModal(parentName) {
 }
 
 // ============================================
-// 4. DASHBOARD STATISTICS FUNCTIONS
+// 4. DOWNLOAD FUNCTION
 // ============================================
 
-// [CRITICAL FUNCTION] Menggunakan Local Date agar akurat
-async function getDashboardStatistics() {
-    try {
-        console.log('📊 Fetching dashboard statistics...');
-
-        // ============================================================
-        // ✅ FIX TIMEZONE: Gunakan Waktu Lokal
-        // ============================================================
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-
-        // Fungsi helper bikin tanggal YYYY-MM-DD lokal
-        const toLocalYMD = (d) => {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}`;
-        };
-
-        // Start: Tanggal 1 bulan ini
-        const startDate = toLocalYMD(new Date(year, month, 1));
-
-        // End: Tanggal terakhir bulan ini (bukan hari ini, biar mencakup semua inputan user)
-        const endDate = toLocalYMD(new Date(year, month + 1, 0));
-
-        console.log(`📅 KPI Query Range: ${startDate} to ${endDate}`);
-
-        const { data: allTransaksi, error } = await supabase
-            .from(CONSTANTS.TABLES.LIST_HARIAN)
-            .select('*')
-            .gte('tgl_order', startDate)
-            .lte('tgl_order', endDate)
-            .order('tgl_order', { ascending: true });
-
-        if (error) throw error;
-
-        // Hitung Statistik
-        const transaksiSukses = allTransaksi.filter(t => t.status_order === 'SUKSES');
-        const transaksiProses = allTransaksi.filter(t => t.status_order === 'PROSES');
-        const transaksiGagal = allTransaksi.filter(t => t.status_order === 'GAGAL' || t.status_order === 'BATAL');
-
-        const omzetBulanIni = transaksiSukses.length * 20000;
-        const pembayaranLunas = allTransaksi.filter(t => t.status_bayar === 'LUNAS').length;
-        const pembayaranBelumLunas = allTransaksi.filter(t => t.status_bayar === 'BELUM LUNAS').length;
-
-        // Hitung rata-rata harian (berdasarkan hari yang sudah berjalan)
-        const todayDate = new Date().getDate(); // Tanggal hari ini (misal tgl 23)
-        const rataRataHarian = todayDate > 0 ? omzetBulanIni / todayDate : 0;
-        const rataRataTransaksiHarian = todayDate > 0 ? transaksiSukses.length / todayDate : 0;
-
-        return {
-            omzetBulanIni,
-            statusOmzet: 'success',
-            totalTransaksi: allTransaksi.length,
-            totalSukses: transaksiSukses.length,
-            totalProses: transaksiProses.length,
-            totalGagal: transaksiGagal.length,
-            pembayaranLunas,
-            pembayaranBelumLunas,
-            rataRataHarian,
-            rataRataTransaksiHarian
-        };
-
-    } catch (error) {
-        console.error('❌ Error in getDashboardStatistics:', error.message);
-        throw error;
-    }
-}
-
-function renderDashboardKPI(stats, containerId = 'dashboard-kpi') {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    container.innerHTML = `
-    <div class="row g-3">
-      <div class="col-md-3 col-6">
-        <div class="card border-primary h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center mb-2">
-              <i class="fas fa-chart-line me-2" style="color: #007bff; font-size: 1.5rem;"></i>
-              <h6 class="card-subtitle mb-0 text-muted">OMZET BULAN INI</h6>
-            </div>
-            <h2 class="card-title mb-1" style="color: #007bff;">
-              <strong>${formatCurrency(stats.omzetBulanIni)}</strong>
-            </h2>
-            <small class="text-muted">Status: ${stats.statusOmzet}</small>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-3 col-6">
-        <div class="card border-warning h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center mb-2">
-              <i class="fas fa-receipt me-2" style="color: #ffc107; font-size: 1.5rem;"></i>
-              <h6 class="card-subtitle mb-0 text-muted">TRANSAKSI TOTAL</h6>
-            </div>
-            <h2 class="card-title mb-1" style="color: #ffc107;">
-              <strong>${stats.totalTransaksi}</strong>
-            </h2>
-            <div class="mt-2">
-              <span class="badge bg-success me-1">✓ ${stats.totalSukses}</span>
-              <span class="badge bg-warning me-1">◷ ${stats.totalProses}</span>
-              <span class="badge bg-danger">✗ ${stats.totalGagal}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-3 col-6">
-        <div class="card border-success h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center mb-2">
-              <i class="fas fa-money-bill-wave me-2" style="color: #28a745; font-size: 1.5rem;"></i>
-              <h6 class="card-subtitle mb-0 text-muted">PEMBAYARAN</h6>
-            </div>
-            <h3 class="card-title mb-1" style="color: #28a745;">
-              <strong>${stats.pembayaranLunas}</strong> Lunas
-            </h3>
-            <h5 class="text-muted mb-0">
-              ${stats.pembayaranBelumLunas} Belum Lunas
-            </h5>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-3 col-6">
-        <div class="card border-info h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-center mb-2">
-              <i class="fas fa-calendar-check me-2" style="color: #17a2b8; font-size: 1.5rem;"></i>
-              <h6 class="card-subtitle mb-0 text-muted">RATA-RATA HARIAN</h6>
-            </div>
-            <h3 class="card-title mb-1" style="color: #17a2b8;">
-              <strong>${formatCurrency(stats.rataRataHarian)}</strong>
-            </h3>
-            <small class="text-muted">
-              ${stats.rataRataTransaksiHarian.toFixed(1)} transaksi/hari
-            </small>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * DOWNLOAD REKAP TXT (VERSI WHATSAPP FORMAT)
- * - Menggunakan simbol *bintang* untuk Bold
- * - Ditambah Emoji biar cantik
- * - Format Rapi untuk layar HP
- */
 async function downloadRekapTXT() {
     try {
         showLoading('Menyiapkan laporan WA...');
-
         const detailData = await getAllRekapDetail();
 
         if (!detailData || detailData.length === 0) {
@@ -448,28 +312,29 @@ async function downloadRekapTXT() {
         }
 
         const groupedData = {};
-
         detailData.forEach(item => {
-            const parentName = item.parent_name || item.nama_user || 'Tanpa Nama';
-            if (!groupedData[parentName]) {
-                groupedData[parentName] = [];
+            let parentRaw = item.parent_name;
+            if (!parentRaw || parentRaw.trim() === '') {
+                parentRaw = item.nama_user ? extractParentName(item.nama_user) : 'Tanpa Nama';
             }
-            groupedData[parentName].push(item);
+            const parentKey = parentRaw.trim().toUpperCase().replace(/\s+/g, ' ');
+
+            if (!groupedData[parentKey]) {
+                groupedData[parentKey] = [];
+            }
+            groupedData[parentKey].push(item);
         });
 
-        // Setup Tanggal
         const d = new Date();
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = d.getFullYear();
         const today = `${day}/${month}/${year}`;
 
-        // HEADER WA
         let txtContent = "📊 *LAPORAN HUTANG BELUM LUNAS* 📊\n";
         txtContent += `📅 Tanggal Cetak: ${today}\n\n`;
 
         const sortedParents = Object.keys(groupedData).sort();
-
         let grandTotalUang = 0;
         let grandTotalTrx = 0;
 
@@ -477,42 +342,32 @@ async function downloadRekapTXT() {
             const items = groupedData[parent];
             let subtotalUang = 0;
 
-            // NAMA PELANGGAN (Pakai Icon Orang)
-            // Menggunakan * supaya nama pelanggan BOLD
             txtContent += `👤 *PELANGGAN: ${parent.toUpperCase()}*\n`;
 
             items.forEach((item, index) => {
                 const tgl = item.tgl_transaksi ? formatDateToDisplay(item.tgl_transaksi) : '-';
                 let rawNama = item.nama_user || '-';
-
-                // Ambil nama dalam kurung
                 let cleanNama = rawNama;
                 const match = rawNama.match(/\(([^)]+)\)/);
                 if (match && match[1]) {
                     cleanNama = match[1].trim();
                 }
 
-                // Hitung Nominal
                 const nominal = Number(item.nominal);
                 const nominalFix = !isNaN(nominal) && nominal !== 0 ? nominal : 20000;
                 subtotalUang += nominalFix;
 
-                // Format Item: "1. 07/11/2025 - Nama"
                 const nomor = (index + 1).toString() + ".";
                 txtContent += `${nomor} ${tgl} - ${cleanNama}\n`;
             });
 
-            // TOTAL PER PELANGGAN (BOLD DENGAN BINTANG)
             const totalRp = formatCurrency(subtotalUang);
-
-            // Format: *💰 TOTAL: 5 Trx = Rp 100.000*
             txtContent += `*💰 TOTAL: ${items.length} Trx = ${totalRp}*\n\n`;
 
             grandTotalUang += subtotalUang;
             grandTotalTrx += items.length;
         });
 
-        // GRAND TOTAL DI BAWAH (BOLD JUGA)
         txtContent += "----------------------------------\n";
         txtContent += `*🏆 GRAND TOTAL: ${formatCurrency(grandTotalUang)}*\n`;
         txtContent += `*📝 TOTAL TRANSAKSI: ${grandTotalTrx}*\n`;
@@ -539,4 +394,22 @@ async function downloadRekapTXT() {
     }
 }
 
-console.log('✅ rekap.js (FULL VERSION) loaded successfully!');
+// ============================================
+// 5. GLOBAL EXPORTS
+// ============================================
+
+// Fungsi ini penting agar app.js bisa mengaksesnya
+function renderDashboardKPI(stats, containerId) {
+    // Fungsi dummy agar tidak error jika dipanggil app.js
+    // Logic KPI sebenarnya sudah ada di app.js
+    console.log('Rendering KPI from rekap.js (helper)');
+}
+
+window.getAllRekapDetail = getAllRekapDetail;
+window.renderRekapTable = renderRekapTable;
+window.downloadRekapTXT = downloadRekapTXT;
+window.searchRekap = searchRekap;
+window.getRekapDetailByParent = getRekapDetailByParent;
+window.renderDashboardKPI = renderDashboardKPI; // Ekspor helper jika diperlukan
+
+console.log('✅ rekap.js FULL VERSION loaded successfully!');

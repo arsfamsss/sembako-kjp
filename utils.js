@@ -305,13 +305,17 @@ function formatDateLong(isoDate) {
 function extractParentName(namaUser) {
     if (!namaUser) return '';
 
+    // Ambil semua karakter sebelum tanda kurung pertama
     const match = namaUser.match(/^(.+?)\s*\(/);
     if (match) {
-        return match[1].trim();
+        // Normalisasi: trim, uppercase, hapus spasi ganda
+        return match[1].trim().toUpperCase().replace(/\s+/g, ' ');
     }
 
-    return namaUser;
+    // Jika tidak ada kurung, normalisasi juga
+    return namaUser.trim().toUpperCase().replace(/\s+/g, ' ');
 }
+
 
 // ============================================
 // UI HELPER FUNCTIONS
