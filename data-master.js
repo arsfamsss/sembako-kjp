@@ -53,23 +53,59 @@ async function getAllDataMaster() {
 
 async function searchDataMaster(keyword) {
     try {
-        console.log(`🔍 Searching data master: ${keyword}`);
+        console.log(`🔍 Searching data master (Smart Search): ${keyword}`);
 
         if (!keyword || keyword.trim() === '') {
             return [];
         }
 
-        const { data, error } = await supabase
+        // 1. Normalisasi Keyword (Hapus simbol aneh, ganti spasi ganda dengan spasi tunggal)
+        const cleanKeyword = keyword.replace(/[()\[\]{},]/g, ' ').trim();
+
+        // 2. Pecah menjadi kata-kata terpisah (Split by space)
+        // Contoh: "3173 0145" menjadi ['3173', '0145']
+        const words = cleanKeyword.split(/\s+/).filter(w => w.length > 0);
+
+        if (words.length === 0) return [];
+
+        // 3. Build Query Database (OR Logic)
+        // Cari baris yang mengandung SALAH SATU kata kunci di kolom manapun
+        let query = supabase
             .from(CONSTANTS.TABLES.DATA_MASTER)
-            .select('*')
-            .or(`nama_user.ilike.%${keyword}%,no_kjp.ilike.%${keyword}%,no_ktp.ilike.%${keyword}%,no_kk.ilike.%${keyword}%`)
-            .limit(50);
+            .select('id, nama_user, no_kjp, no_ktp, parent_name, no_kk, tgl_tambah');
+
+        const orConditions = [];
+        words.forEach(w => {
+            orConditions.push(`nama_user.ilike.%${w}%`);
+            orConditions.push(`parent_name.ilike.%${w}%`);
+            orConditions.push(`no_kjp.ilike.%${w}%`);
+            orConditions.push(`no_ktp.ilike.%${w}%`);
+            orConditions.push(`no_kk.ilike.%${w}%`);
+        });
+
+        // Gabung kondisi dengan koma (syntax Supabase untuk OR)
+        query = query.or(orConditions.join(','));
+
+        // Execute query
+        const { data, error } = await query.limit(100); // Limit biar gak berat
 
         if (error) throw error;
-        return data || [];
+
+        // 4. Filter Strict di JavaScript (AND Logic)
+        // Pastikan hasil yang muncul mengandung SEMUA kata yang diketik user
+        const filteredData = (data || []).filter(item => {
+            // Gabungkan semua field jadi satu string target pencarian
+            const searchTarget = `${item.nama_user} ${item.parent_name || ''} ${item.no_kjp} ${item.no_ktp || ''} ${item.no_kk || ''}`.toLowerCase();
+
+            // Cek apakah setiap kata input ada di dalam target
+            return words.every(w => searchTarget.includes(w.toLowerCase()));
+        });
+
+        console.log(`✅ Found ${filteredData.length} results (Filtered from ${data?.length || 0})`);
+        return filteredData;
 
     } catch (error) {
-        console.error('❌ Error searchDataMaster:', error.message);
+        console.error('❌ Error searching data master:', error.message);
         throw error;
     }
 }

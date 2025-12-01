@@ -127,6 +127,9 @@ async function searchListHarian(keyword, filters = {}) {
         words.forEach(w => {
             orConditions.push(`nama_user.ilike.%${w}%`);
             orConditions.push(`no_kjp.ilike.%${w}%`);
+            // ✅ PATCH: Tambah KTP & KK ke query database
+            orConditions.push(`no_ktp.ilike.%${w}%`);
+            orConditions.push(`no_kk.ilike.%${w}%`);
         });
 
         // Gabung kondisi dengan koma
@@ -153,7 +156,8 @@ async function searchListHarian(keyword, filters = {}) {
         // Di sini kita saring agar HANYA data yang mengandung SEMUA kata yang muncul.
         // Jadi "Adnan Narendra" hanya akan cocok dengan data yang punya kedua kata tersebut.
         const filteredData = (data || []).filter(item => {
-            const searchTarget = `${item.nama_user} ${item.no_kjp}`.toLowerCase();
+            // ✅ PATCH: Tambah KTP & KK ke target pencarian filter
+            const searchTarget = `${item.nama_user} ${item.no_kjp} ${item.no_ktp || ''} ${item.no_kk || ''}`.toLowerCase();
             // Cek apakah setiap kata dari input user ada di data ini
             return words.every(w => searchTarget.includes(w.toLowerCase()));
         });

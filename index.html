@@ -241,8 +241,7 @@
                     <div class="row mb-3">
                         <div class="col-md-2">
                             <input type="text" id="search-list-harian" class="form-control"
-                                placeholder="Cari transaksi (nama / no kjp)..."
-                                oninput="handleSearchListHarian(this.value)">
+                                placeholder="Cari Nama, KJP, KTP, KK..." oninput="handleSearchListHarian(this.value)">
                         </div>
                         <div class="col-md-2">
                             <select id="filter-status-order" class="form-select" onchange="handleFilterListHarian()">
@@ -283,11 +282,25 @@
                                             onchange="toggleSelectAllTransaksi()">
                                     </th>
                                     <th>No</th>
-                                    <th>Nama</th>
-                                    <th>No. KJP</th>
-                                    <th>Tgl Order</th>
-                                    <th>Status Order</th>
-                                    <th>Status Bayar</th>
+                                    <th onclick="setListHarianSort('nama_user')"
+                                        style="cursor:pointer; user-select:none;">
+                                        Nama <span id="sort-lh-nama_user">↕</span>
+                                    </th>
+                                    <th onclick="setListHarianSort('no_kjp')" style="cursor:pointer; user-select:none;">
+                                        No. KJP <span id="sort-lh-no_kjp">↕</span>
+                                    </th>
+                                    <th onclick="setListHarianSort('tgl_order')"
+                                        style="cursor:pointer; user-select:none;">
+                                        Tgl Order <span id="sort-lh-tgl_order">↕</span>
+                                    </th>
+                                    <th onclick="setListHarianSort('status_order')"
+                                        style="cursor:pointer; user-select:none;">
+                                        Status Order <span id="sort-lh-status_order">↕</span>
+                                    </th>
+                                    <th onclick="setListHarianSort('status_bayar')"
+                                        style="cursor:pointer; user-select:none;">
+                                        Status Bayar <span id="sort-lh-status_bayar">↕</span>
+                                    </th>
                                     <th class="text-center">Detail</th>
                                     <th class="text-center">Aksi</th>
                                 </tr>

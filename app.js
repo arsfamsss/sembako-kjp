@@ -1250,6 +1250,10 @@ async function loadListHarian(page = 1) {
 
         renderPagination(result, 'list-harian-pagination', loadListHarian);
 
+        // ✅ PATCH: Render indikator panah sorting
+        if (typeof renderListHarianSortIndicator === 'function') {
+            renderListHarianSortIndicator();
+        }
 
         // Clear bulk selection
         clearSelectAllTransaksi();
@@ -1357,6 +1361,41 @@ function handleFilterListHarian() {
         // Tidak ada keyword → load biasa dengan filter
         loadListHarian(1);
     }
+}
+
+// ============================================
+// ✅ PATCH BARU: FUNGSI SORTING LIST HARIAN
+// ============================================
+function setListHarianSort(field) {
+    if (listHarianSortField === field) {
+        listHarianSortAsc = !listHarianSortAsc; // Toggle ASC/DESC
+    } else {
+        listHarianSortField = field;
+        listHarianSortAsc = true; // Reset ke ASC jika ganti kolom
+    }
+    console.log(`🔄 List Harian Sort: ${field} ${listHarianSortAsc ? '↑' : '↓'}`);
+    loadListHarian(1); // Reload data
+}
+
+function renderListHarianSortIndicator() {
+    const fields = ['nama_user', 'no_kjp', 'tgl_order', 'status_order', 'status_bayar'];
+
+    fields.forEach(field => {
+        const el = document.getElementById('sort-lh-' + field);
+        if (el) {
+            if (listHarianSortField === field) {
+                // Kolom aktif: Tampilkan panah biru
+                el.innerHTML = listHarianSortAsc ? ' ▲' : ' ▼';
+                el.style.color = '#0d6efd';
+                el.style.fontWeight = 'bold';
+            } else {
+                // Kolom non-aktif: Tampilkan panah abu
+                el.innerHTML = ' ↕';
+                el.style.color = '#d0d0d0';
+                el.style.fontWeight = 'normal';
+            }
+        }
+    });
 }
 
 /**
