@@ -35,7 +35,15 @@ async function initializeApp() {
         // ========================================================
         // Load Dashboard Awal
         // ========================================================
+
+        // ✅ PATCH: Set dropdown filter ke bulan sekarang
+        if (typeof initDashboardFilterUI === 'function') {
+            initDashboardFilterUI();
+        }
+
         await loadDashboard();
+
+        // Panggil Running Text Manual (untuk memastikan dia jalan)
 
         // Panggil Running Text Manual (untuk memastikan dia jalan)
         if (typeof updateHeaderRunningText === 'function') {
@@ -73,9 +81,11 @@ document.addEventListener('DOMContentLoaded', function () {
  * Load dashboard data (KPI & Statistics) - VERSI SERVER SETTING
  * Syarat: Setting API 'max_rows' di Supabase sudah diubah > 1000 (misal 10000)
  */
-async function loadDashboard() {
+async function loadDashboard(filterMonth = null, filterYear = null) {
     try {
-        console.log('📊 Loading dashboard data (Simple Fetch)...');
+        // Tampilkan loading indicator di console
+        const mode = (filterMonth !== null) ? `Filter: ${filterMonth + 1}/${filterYear}` : 'Current Month';
+        console.log(`📊 Loading dashboard data... (${mode})`);
 
         // Reset container pagination
         ['data-master-pagination', 'list-harian-pagination', 'rekap-pagination'].forEach(id => {
@@ -83,11 +93,9 @@ async function loadDashboard() {
             if (el) el.innerHTML = '';
         });
 
-        // 1. Tentukan Range Tanggal (Tgl 1 s/d Hari Ini)
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
 
+        // Helper formatting YYYY-MM-DD
         const toLocalYMD = (d) => {
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -95,17 +103,46 @@ async function loadDashboard() {
             return `${y}-${m}-${day}`;
         };
 
-        const startDateStr = toLocalYMD(new Date(year, month, 1));
-        const endDateStr = toLocalYMD(now);
+        // 1. LOGIKA PENENTUAN TANGGAL (SMART FILTER)
+        let targetMonth, targetYear;
+        let startDateStr, endDateStr;
 
-        // Range 30 Hari Terakhir (untuk Chart Tren)
-        const thirtyDaysAgoDate = new Date(now);
-        thirtyDaysAgoDate.setDate(now.getDate() - 30);
-        const thirtyDaysAgoStr = toLocalYMD(thirtyDaysAgoDate);
+        if (filterMonth !== null && filterYear !== null) {
+            // MODE HISTORY: User memilih bulan/tahun spesifik
+            targetMonth = filterMonth;
+            targetYear = filterYear;
+
+            // Start: Tanggal 1 bulan itu
+            startDateStr = toLocalYMD(new Date(targetYear, targetMonth, 1));
+
+            // End: Tanggal TERAKHIR bulan itu (Tanggal 0 bulan depannya)
+            endDateStr = toLocalYMD(new Date(targetYear, targetMonth + 1, 0));
+
+        } else {
+            // MODE DEFAULT: Bulan berjalan (Current Month)
+            targetMonth = now.getMonth();
+            targetYear = now.getFullYear();
+
+            // Sinkronkan UI Dropdown jika ada
+            const mEl = document.getElementById('dash-filter-month');
+            const yEl = document.getElementById('dash-filter-year');
+            if (mEl && yEl) {
+                mEl.value = targetMonth;
+                yEl.value = targetYear;
+            }
+
+            // Start: Tanggal 1 bulan ini
+            startDateStr = toLocalYMD(new Date(targetYear, targetMonth, 1));
+            // End: Hari ini (Real time)
+            endDateStr = toLocalYMD(now);
+        }
+
+        // Variabel untuk Grafik Tren (Mulai dari tgl 1 s/d tgl akhir)
+        const trendStartDateStr = startDateStr;
 
         console.log(`📅 Query Dashboard: ${startDateStr} s/d ${endDateStr}`);
 
-        // 2. Fetch Data (Cukup sekali panggil karena server limit sudah dinaikkan)
+        // 2. Fetch Data
         const { data: thisMonthData, error: err1 } = await supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*')
@@ -129,8 +166,22 @@ async function loadDashboard() {
         const trxLunas = thisMonthData.filter(t => t.status_bayar === 'LUNAS');
         const trxBelumLunas = thisMonthData.filter(t => t.status_bayar === 'BELUM LUNAS');
 
-        const hariBerjalan = now.getDate();
-        const pembagiHarian = hariBerjalan > 0 ? hariBerjalan : 1;
+        // ✅ PATCH FIX: Logika Pembagi Hari
+        let pembagiHarian = 1;
+
+        if (filterMonth !== null && filterYear !== null) {
+            // MODE FILTER (MASA LALU): Gunakan total hari dalam bulan itu (misal 30 atau 31)
+            // Rumus JS cari tgl terakhir: new Date(thn, bln+1, 0).getDate()
+            pembagiHarian = new Date(filterYear, filterMonth + 1, 0).getDate();
+        } else {
+            // MODE BULAN INI: Gunakan tanggal hari ini yang sedang berjalan
+            pembagiHarian = now.getDate();
+        }
+
+        // Safety check biar tidak dibagi 0 atau minus
+        if (pembagiHarian < 1) pembagiHarian = 1;
+
+        console.log(`➗ Pembagi Rata-rata: ${pembagiHarian} hari`); // Debugging log
 
         const stats = {
             omzetBulanIni: trxSukses.length * 20000,
@@ -153,7 +204,7 @@ async function loadDashboard() {
         const { data: last30DaysData, error: err2 } = await supabase
             .from(CONSTANTS.TABLES.LIST_HARIAN)
             .select('*')
-            .gte('tgl_order', thirtyDaysAgoStr)
+            .gte('tgl_order', trendStartDateStr) // ✅ Variable baru (Tgl 1 bulan tersebut)
             .lte('tgl_order', endDateStr)
             .eq('status_order', 'SUKSES');
 
@@ -174,6 +225,71 @@ async function loadDashboard() {
 // ============================================
 // CHART FUNCTIONS - FIXED VERSION (NO DUPLICATES)
 // ============================================
+
+/**
+ * Render KPI Cards (Omzet, Transaksi, Pembayaran, Rata-rata)
+ * Mengembalikan tampilan 4 kartu di atas grafik.
+ */
+function renderDashboardKPI(stats, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = `
+    <div class="row g-3">
+      <div class="col-md-3 col-6">
+        <div class="card border-primary h-100 shadow-sm">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-3">
+            <h6 class="card-title text-muted mb-2 text-uppercase fw-bold" style="font-size: 0.75rem;">
+               <i class="fas fa-chart-line text-primary me-2"></i> Omzet Bulan Ini
+            </h6>
+            <h2 class="fw-bold text-dark mb-1">${formatCurrency(stats.omzetBulanIni)}</h2>
+            <small class="text-muted fw-bold" style="font-size: 0.8rem;">Status: ${stats.statusOmzet}</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 col-6">
+        <div class="card border-warning h-100 shadow-sm">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-3">
+             <h6 class="card-title text-muted mb-2 text-uppercase fw-bold" style="font-size: 0.75rem;">
+               <i class="fas fa-receipt text-warning me-2"></i> Transaksi Total
+            </h6>
+            <h2 class="fw-bold text-dark mb-2">${stats.totalTransaksi}</h2>
+            <div>
+              <span class="badge bg-success rounded-pill me-1">✓ ${stats.totalSukses}</span>
+              <span class="badge bg-warning text-dark rounded-pill me-1">◷ ${stats.totalProses}</span>
+              <span class="badge bg-danger rounded-pill">✗ ${stats.totalGagal}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 col-6">
+        <div class="card border-success h-100 shadow-sm">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-3">
+            <h6 class="card-title text-muted mb-2 text-uppercase fw-bold" style="font-size: 0.75rem;">
+               <i class="fas fa-money-bill-wave text-success me-2"></i> Pembayaran
+            </h6>
+            <h2 class="fw-bold text-dark mb-1">${stats.pembayaranLunas} LUNAS</h2>
+            <small class="text-muted fw-bold" style="font-size: 0.8rem;">${stats.pembayaranBelumLunas} Belum Lunas</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 col-6">
+        <div class="card border-info h-100 shadow-sm">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-3">
+            <h6 class="card-title text-muted mb-2 text-uppercase fw-bold" style="font-size: 0.75rem;">
+               <i class="fas fa-calendar-check text-info me-2"></i> Rata-rata Harian
+            </h6>
+            <h2 class="fw-bold text-dark mb-1">${formatCurrency(stats.rataRataHarian)}</h2>
+            <small class="text-muted fw-bold" style="font-size: 0.8rem;">${stats.rataRataTransaksiHarian.toFixed(1)} transaksi/hari</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 /**
  * Grafik 1: Status Order (Donut Chart)
@@ -230,9 +346,15 @@ function renderStatusOrderChart(data) {
  */
 function renderTrendOmzetChart(data) {
     try {
+        // 1. HAPUS GRAFIK LAMA DULU (WAJIB)
+        if (window.trendOmzetChart instanceof Chart) {
+            window.trendOmzetChart.destroy();
+        }
+
+        // 2. BARU CEK DATA KOSONG
         if (!data || data.length === 0) {
-            console.warn('⚠️ No data for trend chart');
-            return;
+            console.warn('⚠️ No data for trend chart (Canvas cleared)');
+            return; // Stop di sini, canvas sudah bersih
         }
 
         const trenByDate = {};
@@ -338,6 +460,13 @@ function renderTrendOmzetChart(data) {
 // Grafik 3: Top 20 Keluarga Omzet Terbanyak
 function renderTopParentChart(data) {
     try {
+        // ==========================================
+        // ✅ PATCH: HAPUS GRAFIK LAMA DULUAN (WAJIB)
+        // ==========================================
+        if (window.topParentChart instanceof Chart) {
+            window.topParentChart.destroy();
+        }
+
         const parentStats = {};
 
         data.forEach(d => {
@@ -369,10 +498,10 @@ function renderTopParentChart(data) {
             .slice(0, 20);
 
 
-
+        // ✅ PATCH: BARU CEK DATA KOSONG SETELAH GRAFIK LAMA DIHAPUS
         if (topParents.length === 0) {
-            console.warn('⚠️ No parent data for chart');
-            return;
+            console.warn('⚠️ No parent data for chart (Canvas cleared)');
+            return; // Stop di sini, canvas sudah bersih
         }
 
         // Persiapan Data
@@ -387,9 +516,7 @@ function renderTopParentChart(data) {
         const ctx = document.getElementById('topParentChart');
         if (!ctx) return;
 
-        if (window.topParentChart instanceof Chart) {
-            window.topParentChart.destroy();
-        }
+        // (Kode destroy lama di sini sudah dihapus karena dipindah ke atas)
 
         const infographicColors = [
             '#FF5733', '#FF8D1A', '#FFC300', '#DAF7A6', '#33FF57',
@@ -2979,3 +3106,51 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHeaderRunningText();
     setInterval(updateHeaderRunningText, 60000); // Update jam setiap 60 detik
 });
+
+// ============================================
+// ✅ PATCH BARU: FUNGSI FILTER DASHBOARD
+// ============================================
+
+/**
+ * Dipanggil saat tombol "Tampilkan Data" diklik
+ */
+function applyDashboardFilter() {
+    const monthEl = document.getElementById('dash-filter-month');
+    const yearEl = document.getElementById('dash-filter-year');
+
+    if (!monthEl || !yearEl) return;
+
+    const month = monthEl.value;
+    const year = yearEl.value;
+
+    // Load dashboard dengan parameter spesifik
+    loadDashboard(parseInt(month), parseInt(year));
+}
+
+/**
+ * Dipanggil saat tombol "Reset" diklik
+ */
+function resetDashboardFilter() {
+    // Set dropdown kembali ke bulan/tahun sekarang
+    const now = new Date();
+    const monthEl = document.getElementById('dash-filter-month');
+    const yearEl = document.getElementById('dash-filter-year');
+
+    if (monthEl) monthEl.value = now.getMonth();
+    if (yearEl) yearEl.value = now.getFullYear();
+
+    // Load tanpa parameter (otomatis current month)
+    loadDashboard();
+}
+
+/**
+ * Helper: Set dropdown dashboard ke bulan saat ini saat pertama buka
+ */
+function initDashboardFilterUI() {
+    const now = new Date();
+    const monthEl = document.getElementById('dash-filter-month');
+    const yearEl = document.getElementById('dash-filter-year');
+
+    if (monthEl) monthEl.value = now.getMonth();
+    if (yearEl) yearEl.value = now.getFullYear();
+}
