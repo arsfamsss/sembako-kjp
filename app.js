@@ -16,6 +16,7 @@ let dataMasterSortField = 'nama_user';
 let dataMasterSortAsc = true;
 
 let selectedTransaksiIds = [];
+let selectedTransaksiData = new Map();
 let selectedDataMasterIds = [];
 
 
@@ -1331,11 +1332,13 @@ async function loadListHarian(page = 1) {
             else if (item.status_order === 'GAGAL') statusOrderColor = 'danger';   // ✅ Merah
             else statusOrderColor = 'secondary';
 
+            // ✅ PATCH: Persistent checkbox - cek apakah sudah dipilih sebelumnya
+            const isChecked = selectedTransaksiIds.includes(String(item.id)) ? 'checked' : '';
 
             html += `
         <tr>
           <td>
-            <input type="checkbox" class="transaksi-checkbox" value="${item.id}" onchange="updateBulkSelectPanel()">
+            <input type="checkbox" class="transaksi-checkbox" value="${item.id}" ${isChecked} onchange="updateBulkSelectPanel()">
           </td>
           <td><strong>${rowNum}</strong></td>
           <td>${item.nama_user || '(Nama tidak ditemukan)'}</td>
@@ -1365,6 +1368,7 @@ async function loadListHarian(page = 1) {
         </tr>
       `;
         });
+
 
         // STORE data untuk modal (PATCH 13)
         currentTransactionList = result.data;
@@ -1414,15 +1418,18 @@ async function handleSearchListHarian(keyword) {
         const results = await searchListHarian(keyword, filters);
 
 
+
         let html = '';
         results.forEach((item, index) => {
             // ✅ PATCH FIX: Definisikan rowNum agar tidak error
             const rowNum = index + 1;
 
+
             let statusBayarColor;
             if (item.status_bayar === 'LUNAS') statusBayarColor = 'success';
             else if (item.status_bayar === 'BELUM LUNAS') statusBayarColor = 'danger';
             else statusBayarColor = 'secondary';
+
 
             let statusOrderColor;
             if (item.status_order === 'SUKSES') statusOrderColor = 'success';      // ✅ Hijau
@@ -1430,11 +1437,13 @@ async function handleSearchListHarian(keyword) {
             else if (item.status_order === 'GAGAL') statusOrderColor = 'danger';   // ✅ Merah
             else statusOrderColor = 'secondary';
 
+            // ✅ PATCH: Persistent checkbox - cek apakah sudah dipilih sebelumnya
+            const isChecked = selectedTransaksiIds.includes(String(item.id)) ? 'checked' : '';
 
             html += `
         <tr>
           <td>
-            <input type="checkbox" class="transaksi-checkbox" value="${item.id}" onchange="updateBulkSelectPanel()">
+            <input type="checkbox" class="transaksi-checkbox" value="${item.id}" ${isChecked} onchange="updateBulkSelectPanel()">
           </td>
           <td><strong>${rowNum}</strong></td>
           <td>${item.nama_user || '(Nama tidak ditemukan)'}</td>
@@ -1461,10 +1470,13 @@ async function handleSearchListHarian(keyword) {
       `;
 
 
+
         });
+
 
         // STORE data untuk modal (PATCH 13)
         currentTransactionList = results;
+
 
         document.getElementById('list-harian-table-body').innerHTML = html;
         document.getElementById('list-harian-pagination').innerHTML = ''; // Hapus pagination saat search
@@ -1472,6 +1484,7 @@ async function handleSearchListHarian(keyword) {
         console.error('Error searching list harian:', error);
     }
 }
+
 
 /**
  * Handle filter list harian (date & status)
@@ -1544,19 +1557,48 @@ function toggleSelectAllTransaksi() {
  */
 function updateBulkSelectPanel() {
     const checkboxes = document.querySelectorAll('.transaksi-checkbox:checked');
-    selectedTransaksiIds = Array.from(checkboxes).map(cb => cb.value);
+    const allVisibleCheckboxes = document.querySelectorAll('.transaksi-checkbox');
+    const visibleIds = Array.from(allVisibleCheckboxes).map(cb => cb.value);
+    const checkedThisPage = Array.from(checkboxes).map(cb => cb.value);
+
+    selectedTransaksiIds = selectedTransaksiIds.filter(id => !visibleIds.includes(id));
+    visibleIds.forEach(id => {
+        if (!checkedThisPage.includes(id)) selectedTransaksiData.delete(id);
+    });
+    selectedTransaksiIds = selectedTransaksiIds.concat(checkedThisPage);
+
+    // SIMPAN data lengkap untuk setiap ID yang dicentang
+    checkedThisPage.forEach(id => {
+        if (!selectedTransaksiData.has(id)) {
+            // Cari data dari currentTransactionList
+            const item = currentTransactionList?.find(t => String(t.id) === String(id));
+            if (item) {
+                selectedTransaksiData.set(id, {
+                    id: item.id,
+                    // ✅ PATCH FIX: Gunakan field dengan underscore sesuai database
+                    namauser: item.nama_user || item.namauser || '',
+                    nokjp: item.no_kjp || item.nokjp || '',
+                    noktp: item.no_ktp || item.noktp || '',
+                    nokk: item.no_kk || item.nokk || ''
+                });
+            }
+        }
+    });
+
 
     const panel = document.getElementById('bulk-update-panel');
     const countEl = document.getElementById('selected-count');
+    const btnExportTxt = document.getElementById('btn-export-txt');
 
     if (selectedTransaksiIds.length > 0) {
         panel.style.display = 'block';
         countEl.textContent = selectedTransaksiIds.length;
     } else {
         panel.style.display = 'none';
-        selectedTransaksiIds = [];
     }
+    if (btnExportTxt) btnExportTxt.disabled = selectedTransaksiIds.length === 0;
 }
+
 
 /**
  * Clear select all
@@ -1565,7 +1607,30 @@ function clearSelectAllTransaksi() {
     const selectAll = document.getElementById('select-all-transaksi');
     if (selectAll) selectAll.checked = false;
     document.querySelectorAll('.transaksi-checkbox').forEach(cb => cb.checked = false);
+    selectedTransaksiIds = [];
+    selectedTransaksiData.clear();
     updateBulkSelectPanel();
+}
+
+function exportSelectedToTXT() {
+    if (selectedTransaksiData.size === 0) {
+        showAlert('warning', 'Pilih minimal satu transaksi untuk di-export');
+        return;
+    }
+    let txtContent = '';
+    let count = 0;
+    selectedTransaksiData.forEach((data) => {
+        const nama = (data.namauser || 'TANPA NAMA').toUpperCase();
+        if (count > 0) txtContent += '\n';
+        txtContent += `${nama}\nKJP ${data.nokjp || '-'}\nKTP ${data.noktp || '-'}\nKK ${data.nokk || '-'}\n`;
+        count++;
+    });
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data_yang_gagal_kemarin.txt';
+    a.click();
+    showAlert('success', `${count} data berhasil di-export ke TXT`);
 }
 
 /**
