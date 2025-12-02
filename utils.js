@@ -238,29 +238,14 @@ async function checkKTPExistsByDate(ktp, tglOrder, excludeId = null) {
 // ============================================
 
 function formatNomor(nomor) {
-    // ✅ JANGAN sanitize, gunakan langsung dari DB
+    // Tampilkan nomor sebagai deretan digit tanpa spasi/pemisah
+    // Contoh: "5049 4885 0183 4484" -> "5049488501834484"
     if (!nomor) return '';
-    const str = nomor.toString().trim();
 
-    // ✅ Hapus spasi yang sudah ada
-    const clean = str.replace(/\s+/g, '');
+    // Pakai sanitizer yang sudah dipakai di validasi & DB
+    const clean = sanitizeNumber(nomor);
 
-    // ✅ Group setiap 4 digit dari BELAKANG (untuk KJP/KTP yang panjang)
-    if (clean.length <= 4) {
-        return clean;
-    }
-
-    // Buat array dari belakang
-    const arr = clean.split('');
-    let result = [];
-    for (let i = arr.length - 1; i >= 0; i--) {
-        result.unshift(arr[i]);
-        if ((arr.length - i) % 4 === 0 && i !== 0) {
-            result.unshift(' ');
-        }
-    }
-
-    return result.join('');
+    return clean;
 }
 
 function formatCurrency(amount) {
