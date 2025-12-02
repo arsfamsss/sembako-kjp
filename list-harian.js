@@ -33,19 +33,19 @@ async function getListHarian(page = 1, filters = {}) {
             query = query.eq('tgl_order', filters.tgl_order);
         }
 
-        // Apply sorting
-        const sortField = filters.sort_field || 'tgl_order';
-        const sortAsc = filters.sort_asc !== undefined ? filters.sort_asc : false;
-
+        // Apply sorting GLOBAL:
+        // 1) tgl_order DESC (terbaru di atas)
+        // 2) nama_user ASC (A–Z di tanggal yang sama)
         const { data, error, count } = await query
-            .order(sortField, { ascending: sortAsc })
-            .order('id', { ascending: false })
+            .order('tgl_order', { ascending: false })
+            .order('nama_user', { ascending: true })
             .range(start, end);
 
         if (error) {
             console.error('❌ Error:', error);
             throw error;
         }
+
 
         console.log(`✅ Got ${data?.length || 0} records`);
 
@@ -146,10 +146,14 @@ async function searchListHarian(keyword, filters = {}) {
             query = query.eq('tgl_order', filters.tgl_order);
         }
 
-        // Execute query
-        const { data, error } = await query.order('tgl_order', { ascending: false });
-
+        // Execute query dengan urutan:
+        // 1) tgl_order DESC
+        // 2) nama_user ASC
+        const { data, error } = await query
+            .order('tgl_order', { ascending: false })
+            .order('nama_user', { ascending: true });
         if (error) throw error;
+
 
         // [FIX] 5. Filter Strict di JavaScript (AND Logic)
         // DB mengembalikan hasil luas (Adnan ATAU Narendra).
