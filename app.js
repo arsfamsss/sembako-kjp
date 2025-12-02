@@ -630,7 +630,6 @@ function renderTopParentChart(data) {
     }
 }
 
-
 /**
  * Load data master ke table
  */
@@ -639,17 +638,32 @@ async function loadDataMaster(page = 1) {
         console.log('📋 Loading data master, page:', page);
         currentPageDataMaster = page;
 
-        const result = await getDataMaster(page, dataMasterSortField, dataMasterSortAsc);
+        // ✅ FIX: Tambah pagination
+        const start = (page - 1) * CONSTANTS.PAGE_SIZE;
+        const end = start + CONSTANTS.PAGE_SIZE - 1;
 
-        // ✅ FIX - Pastikan table container VISIBLE sebelum set data
-        const tableBody = document.getElementById('data-master-table-body');
-        if (tableBody) {
-            tableBody.style.display = '';           // Remove display:none
-            tableBody.style.visibility = 'visible'; // Ensure visible
-            tableBody.style.opacity = '1';          // Ensure not transparent
+        // Ambil data dengan pagination DAN hitung total
+        const { data, error, count } = await supabase
+            .from('data_master')
+            .select('*', { count: 'exact' })
+            .order(dataMasterSortField || 'no_kjp', { ascending: dataMasterSortAsc })
+            .range(start, end);
+
+        if (error) {
+            console.error('❌ Error loadDataMaster:', error);
+            showAlert('error', 'Gagal memuat data pelanggan: ' + error.message);
+            return;
         }
 
-        if (!result || !result.data || result.data.length === 0) {
+        // Pastikan table container VISIBLE
+        const tableBody = document.getElementById('data-master-table-body');
+        if (tableBody) {
+            tableBody.style.display = '';
+            tableBody.style.visibility = 'visible';
+            tableBody.style.opacity = '1';
+        }
+
+        if (!data || data.length === 0) {
             console.warn('⚠️ No data master found for page:', page);
             document.getElementById('data-master-table-body').innerHTML = `
                 <tr>
@@ -659,22 +673,20 @@ async function loadDataMaster(page = 1) {
                 </tr>
             `;
             document.getElementById('data-master-pagination').innerHTML = '';
-            document.getElementById('list-harian-pagination').innerHTML = '';
-            document.getElementById('rekap-pagination').innerHTML = '';
             return;
         }
 
-        console.log('✅ Data master loaded:', result.data.length, 'records');
+        console.log(`✅ Data master loaded: ${data.length} records (page ${page}, total: ${count})`);
 
         let html = '';
-        result.data.forEach((item, index) => {
-            const rowNum = (page - 1) * CONSTANTS.PAGE_SIZE + index + 1;
+        data.forEach((item, index) => {
+            const rowNum = start + index + 1;
             html += `
     <tr>
       <td>
         <input type="checkbox" class="dm-checkbox" value="${item.id}" onchange="updateBulkSelectPanelDataMaster()">
       </td>
-      <td>${index + 1}</td>
+      <td>${rowNum}</td>
       <td><strong>${item.nama_user}</strong></td>
       <td>${item.parent_name}</td>
       <td><small>${item.no_kjp}</small></td>
@@ -695,11 +707,14 @@ async function loadDataMaster(page = 1) {
 
         document.getElementById('data-master-table-body').innerHTML = html;
 
-        // =================================================================
-        // ✅ PATCH 2: SEMUA BLOK setTimeout() DI SINI DIHAPUS
-        // Karena fungsi ini sekarang HANYA dipanggil oleh tab listener
-        // saat tab sudah 100% aktif dan terlihat.
-        // =================================================================
+        // ✅ FIX: Render pagination dengan data yang benar
+        const result = {
+            data: data,
+            count: data.length,
+            total: count,
+            page: page,
+            totalPages: Math.ceil(count / CONSTANTS.PAGE_SIZE)
+        };
 
         document.getElementById('list-harian-pagination').innerHTML = '';
         document.getElementById('rekap-pagination').innerHTML = '';
@@ -710,19 +725,20 @@ async function loadDataMaster(page = 1) {
 
         console.log('✅ Data master rendered successfully!');
 
-    } catch (error) {
-        console.error('❌ Error loading data master:', error);
+    } catch (err) {
+        console.error('❌ Error loadDataMaster:', err);
         document.getElementById('data-master-table-body').innerHTML = `
             <tr>
                 <td colspan="9" class="text-center text-danger py-4">
-                    <i class="fas fa-exclamation-circle"></i> Error: ${error.message}
+                    <i class="fas fa-exclamation-circle"></i> Error: ${err.message}
                 </td>
             </tr>
         `;
         document.getElementById('data-master-pagination').innerHTML = '';
-        showAlert('error', 'Gagal memuat data pelanggan: ' + error.message);
+        showAlert('error', 'Gagal memuat data pelanggan: ' + err.message);
     }
 }
+
 
 // ============================================
 // ✅ SORTING DATA MASTER - FUNGSI BARU
@@ -746,37 +762,26 @@ function setDataMasterSort(field) {
 }
 
 /**
- * Render indikator panah sort di header
+ * Render indikator panah sort di header (PAKAI FONTAWESOME)
  */
 function renderDataMasterSortIndicator() {
-    // Semua field yang bisa disortir
     const sortableFields = ['nama_user', 'parent_name', 'no_kjp', 'no_ktp', 'no_kk', 'tgl_tambah'];
 
     sortableFields.forEach(field => {
         const el = document.getElementById('sort-' + field);
         if (el) {
             if (dataMasterSortField === field) {
-                // Field aktif - tampilkan panah dengan styling BOLD
-                el.innerHTML = dataMasterSortAsc ? ' ▲' : ' ▼';
-                el.style.color = '#0d6efd'; // Warna biru Bootstrap
-                el.style.fontWeight = 'bold';
-                el.style.fontSize = '1.1em'; // Perbesar icon
-                el.style.marginLeft = '4px';
-                el.style.display = 'inline-block'; // Agar bisa menerima styling
-                el.classList.add('sort-active'); // Tambah class untuk CSS override
+                // ✅ AKTIF - Icon FontAwesome biru jelas
+                const icon = dataMasterSortAsc ? 'fa-caret-up' : 'fa-caret-down';
+                el.innerHTML = ` <i class="fas ${icon}" style="color: #007bff; font-size: 18px;"></i>`;
             } else {
-                // Field tidak aktif - tampilkan abu-abu samar
-                el.innerHTML = ' ↕'; // Icon default (inactive)
-                el.style.color = '#d0d0d0'; // Warna abu-abu
-                el.style.fontWeight = 'normal';
-                el.style.fontSize = '0.9em';
-                el.style.marginLeft = '4px';
-                el.style.display = 'inline-block';
-                el.classList.remove('sort-active');
+                // ✅ TIDAK AKTIF - Icon abu-abu samar
+                el.innerHTML = ` <i class="fas fa-caret-down" style="color: #adb5bd; font-size: 14px; opacity: 0.4;"></i>`;
             }
         }
     });
 }
+
 
 
 // ============================================
@@ -825,11 +830,6 @@ async function handleSearchDataMaster(keyword) {
         });
 
         document.getElementById('data-master-table-body').innerHTML = html;
-
-        // =================================================================
-        // ✅ PATCH 3: SEMUA BLOK setTimeout() DI SINI JUGA DIHAPUS
-        // =================================================================
-
         document.getElementById('data-master-pagination').innerHTML = '';
 
         // ✅ Update UI setelah search
@@ -838,11 +838,6 @@ async function handleSearchDataMaster(keyword) {
         console.error('Error searching data master:', error);
     }
 }
-
-
-// ============================================
-// ✅ PATCH 4: FUNGSI DUPLIKAT DIHAPUS
-// ============================================
 
 /**
  * Reset form data master (untuk add)
@@ -858,7 +853,7 @@ function resetFormDataMaster() {
     namaUserEl.removeEventListener('blur', updateParentName); // Hapus listener lama
     namaUserEl.addEventListener('blur', updateParentName); // Tambah listener baru
 
-    // Set default dan max tanggal ke hari ini (FIX 5.1)
+    // Set default dan max tanggal ke hari ini
     const today = new Date().toISOString().split('T')[0];
     const tglTambahEl = document.getElementById('tgl_tambah');
     tglTambahEl.setAttribute('max', today);
@@ -885,8 +880,6 @@ async function editDataMaster(id) {
         document.getElementById('no_kjp').value = data.no_kjp;
         document.getElementById('no_ktp').value = data.no_ktp;
         document.getElementById('no_kk').value = data.no_kk;
-
-        // FIX: input type="date" harus pakai format YYYY-MM-DD
         document.getElementById('tgl_tambah').value = data.tgl_tambah;
 
         document.getElementById('formDataMasterTitle').textContent = 'Edit Pelanggan';
@@ -911,11 +904,10 @@ async function handleSaveDataMaster() {
             no_ktp: document.getElementById('no_ktp').value,
             no_kk: document.getElementById('no_kk').value,
             tgl_tambah: document.getElementById('tgl_tambah').value,
-            // --- BARIS INI DIPERBAIKI ---
             parent_name: extractParentName(document.getElementById('nama_user').value.trim()),
         };
 
-        // --- VALIDASI INPUT (FIX 2.4, 5.1) ---
+        // --- VALIDASI INPUT ---
         let validation = validateNama(formData.nama_user);
         if (!validation.valid) return showAlert('error', validation.error);
 
@@ -950,9 +942,6 @@ async function handleSaveDataMaster() {
 
         hideLoading();
 
-        // ======================================================
-        // AFTER (PATCHED)
-        // ======================================================
         // --- Simpan Data ---
         let successData;
         if (id) {

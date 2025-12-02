@@ -302,18 +302,17 @@ async function submitCSVImport() {
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
-
         showLoading(`Memproses ${csvDataBuffer.length} data...`);
 
-        // --- HELPER FUNCTIONS ---
+        // ========== HELPER ==========
+
         const extractSmartParent = (fullName) => {
             if (!fullName) return '';
             let parent = fullName;
             if (fullName.includes('(')) {
-                parent = fullName.split('(')[0]; // Ambil sebelum kurung
+                parent = fullName.split('(')[0];
             }
-            // Title Case
-            return parent.trim().toLowerCase().split(/\s+/).map(word => {
+            return parent.trim().toLowerCase().split(' ').map(word => {
                 return word.charAt(0).toUpperCase() + word.slice(1);
             }).join(' ');
         };
@@ -325,92 +324,201 @@ async function submitCSVImport() {
             return str.replace(/[^0-9]/g, '');
         };
 
-        // --- PREPARE DATA ---
-        const validRows = [];
+        const isIdentical = (csvRow, dbRow) => {
+            return csvRow.nama_user === dbRow.nama_user &&
+                csvRow.no_kjp === dbRow.no_kjp &&
+                csvRow.no_ktp === dbRow.no_ktp &&
+                csvRow.no_kk === dbRow.no_kk;
+        };
 
-        for (let row of csvDataBuffer) {
-            // Flexible Key Search (Case Insensitive)
+        // ========== FASE 1: SIAPKAN DATA DARI CSV ==========
+
+        const validRows = [];
+        csvDataBuffer.forEach((row, idx) => {
             const keys = Object.keys(row);
             const keyNama = keys.find(k => k.toLowerCase().includes('nama'));
             const keyKjp = keys.find(k => k.toLowerCase().includes('kjp'));
             const keyKtp = keys.find(k => k.toLowerCase().includes('ktp'));
             const keyKk = keys.find(k => k.toLowerCase().includes('kk'));
 
-            if (keyNama && keyKjp) {
-                const kjpClean = cleanNumber(row[keyKjp]);
-                const namaClean = row[keyNama] ? row[keyNama].trim() : '';
+            if (!keyNama || !keyKjp) return;
 
-                // Validasi Data
-                if (kjpClean.length >= 5 && namaClean) {
-                    const smartParent = extractSmartParent(namaClean);
+            const kjpClean = cleanNumber(row[keyKjp]);
+            const namaClean = row[keyNama] ? row[keyNama].trim() : '';
 
-                    validRows.push({
-                        no_kjp: kjpClean,           // Key
-                        nama_user: namaClean,       // Update Nama (Full)
-                        parent_name: smartParent,   // Update Parent (Clean)
-                        no_ktp: cleanNumber(row[keyKtp] || ''),
-                        no_kk: cleanNumber(row[keyKk] || ''),
-                        tgl_tambah: new Date().toISOString().split('T')[0]
-                    });
-                }
+            if (kjpClean.length >= 5 && namaClean) {
+                validRows.push({
+                    _rowIndex: idx + 1,
+                    no_kjp: kjpClean,
+                    nama_user: namaClean,
+                    parent_name: extractSmartParent(namaClean),
+                    no_ktp: cleanNumber(row[keyKtp]),
+                    no_kk: cleanNumber(row[keyKk]),
+                    tgl_tambah: new Date().toISOString().split('T')[0]
+                });
             }
-        }
+        });
 
         if (validRows.length === 0) {
             hideLoading();
             btn.disabled = false;
             btn.innerHTML = originalText;
-            return showAlert('error', 'Tidak ada data valid. Cek kolom Nama & KJP.');
+            return showAlert('error', 'Tidak ada data valid. Pastikan kolom Nama & KJP terisi.');
         }
 
-        console.log(`🚀 Melakukan UPSERT untuk ${validRows.length} data...`);
+        // ========== FASE 2: AMBIL DATA EXISTING BERDASARKAN KJP ==========
 
-        // --- BATCH UPSERT ---
-        const BATCH_SIZE = 100;
-        let successCount = 0;
-        let errorCount = 0;
+        const allKjp = validRows.map(r => r.no_kjp);
+        const { data: existingData, error: fetchError } = await supabase
+            .from('data_master')
+            .select('id, no_kjp, nama_user, no_ktp, no_kk')
+            .in('no_kjp', allKjp);
 
-        for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
-            const chunk = validRows.slice(i, i + BATCH_SIZE);
+        if (fetchError) {
+            hideLoading();
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            return showAlert('error', 'Gagal cek data existing: ' + fetchError.message);
+        }
 
-            // Upsert Logic: Jika KJP sama, UPDATE. Jika beda, INSERT.
-            const { error } = await supabase
-                .from(CONSTANTS.TABLES.DATA_MASTER)
-                .upsert(chunk, { onConflict: 'no_kjp' });
+        const existingMap = {};
+        (existingData || []).forEach(row => {
+            existingMap[row.no_kjp] = row;
+        });
 
-            if (error) {
-                console.error('Batch Error:', error);
-                errorCount += chunk.length;
+        // ========== FASE 3: KATEGORI INSERT / UPDATE / SKIP ==========
+
+        const toInsert = [];
+        const toUpdate = [];
+        const skipped = []; // simpan info baris yang di-skip
+
+        for (const csvRow of validRows) {
+            const existing = existingMap[csvRow.no_kjp];
+
+            if (!existing) {
+                // KJP belum ada -> INSERT
+                toInsert.push(csvRow);
+            } else if (isIdentical(csvRow, existing)) {
+                // Data identik -> SKIP
+                skipped.push({
+                    rowIndex: csvRow._rowIndex,
+                    reason: 'Data identik 100% (nama, no_kjp, no_ktp, no_kk)'
+                });
             } else {
-                successCount += chunk.length;
+                // KJP sama, ada field beda -> UPDATE
+                toUpdate.push({
+                    ...csvRow,
+                    id: existing.id
+                });
             }
         }
+
+        // ========== FASE 4: EKSEKUSI INSERT ==========
+
+        let insertSuccess = 0;
+        let insertError = 0;
+        if (toInsert.length > 0) {
+            const BATCH = 100;
+            for (let i = 0; i < toInsert.length; i += BATCH) {
+                const chunk = toInsert.slice(i, i + BATCH);
+
+                // ✅ FIX: Hanya deklarasi sekali, buang _rowIndex
+                const cleanChunk = chunk.map(r => {
+                    const { _rowIndex, ...rest } = r;
+                    return rest;
+                });
+
+                const { error } = await supabase
+                    .from('data_master')
+                    .insert(cleanChunk);
+
+                if (error) {
+                    console.error('Insert error:', error);
+                    insertError += chunk.length;
+                } else {
+                    insertSuccess += chunk.length;
+                }
+            }
+        }
+
+        // ========== FASE 5: EKSEKUSI UPDATE ==========
+
+        let updateSuccess = 0;
+        let updateError = 0;
+        if (toUpdate.length > 0) {
+            const BATCH = 100;
+            for (let i = 0; i < toUpdate.length; i += BATCH) {
+                const chunk = toUpdate.slice(i, i + BATCH);
+
+                // ✅ FIX: Buang _rowIndex sebelum upsert
+                const cleanChunk = chunk.map(r => {
+                    const { _rowIndex, ...rest } = r;
+                    return rest;
+                });
+
+                const { error } = await supabase
+                    .from('data_master')
+                    .upsert(cleanChunk, { onConflict: 'id' });
+
+                if (error) {
+                    console.error('Update error:', error);
+                    updateError += chunk.length;
+                } else {
+                    updateSuccess += chunk.length;
+                }
+            }
+        }
+
+        // ========== FASE 6: SELESAI & LAPORAN ==========
 
         hideLoading();
         btn.disabled = false;
         btn.innerHTML = originalText;
 
+        // optional: tutup modal import
         const modalEl = document.getElementById('importCSVModal');
         if (modalEl) {
             const modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) modal.hide();
         }
 
-        await loadDataMaster(1);
+        let msg = '';
+        msg += `Berhasil INSERT: ${insertSuccess}\n`;
+        msg += `Berhasil UPDATE: ${updateSuccess}\n`;
+        msg += `Skip (identik): ${skipped.length}\n`;
 
-        if (errorCount > 0) {
-            showAlert('warning', `Selesai. Berhasil: ${successCount}, Gagal: ${errorCount}`);
-        } else {
-            showAlert('success', `Sukses! ${successCount} data berhasil diperbarui.`);
+        if (skipped.length > 0) {
+            msg += `\nDetail skip:\n`;
+            skipped.slice(0, 10).forEach(s =>
+                msg += `- Baris ${s.rowIndex}: ${s.reason}\n`
+            );
+            if (skipped.length > 10) {
+                msg += `... dan ${skipped.length - 10} baris lain.\n`;
+            }
         }
 
-    } catch (error) {
-        hideLoading();
-        console.error('Error import CSV:', error);
-        showAlert('error', 'Gagal import: ' + error.message);
+        const totalError = insertError + updateError;
+        if (totalError > 0) {
+            msg += `\nGagal proses: ${totalError}`;
+            showAlert('warning', msg);
+        } else {
+            showAlert('success', msg);
+        }
 
+        // reload tabel
+        if (typeof loadDataMaster === 'function') {
+            await loadDataMaster(1);
+        }
+
+    } catch (err) {
+        console.error('Error import CSV:', err);
+        hideLoading();
         const btn = document.getElementById('importCSVButton');
-        if (btn) btn.disabled = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Import Data';
+        }
+        showAlert('error', 'Gagal import: ' + err.message);
     }
 }
 
