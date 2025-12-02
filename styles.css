@@ -1545,3 +1545,205 @@ div.tab-pane.show {
 #app-screen {
     display: none;
 }
+
+/* ============================================
+   PATCH: TOMBOL LOGOUT BULAT MERAH
+   ============================================ */
+#btn-logout {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    border: none;
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.4);
+}
+
+#btn-logout i {
+    color: #fff;
+}
+
+#btn-logout:hover {
+    background-color: #bb2d3b;
+    transform: scale(1.1);
+}
+
+/* Fix nav-tabs border saat di dalam flex container */
+.nav-tabs.border-0 .nav-link {
+    border-bottom: 2px solid transparent;
+}
+
+.nav-tabs.border-0 .nav-link.active {
+    border-bottom: 2px solid #0d6efd;
+}
+
+/* ============================================
+   HEADER TAB WRAPPER - MODERN GLASSMORPHISM
+   ============================================ */
+.header-tab-wrapper {
+    /* Gradient Background - Biru ke Ungu Soft */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    /* Glassmorphism Effect */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+
+    /* Shape & Spacing */
+    border-radius: 16px;
+    padding: 12px 24px;
+    margin-bottom: 24px;
+
+    /* Modern Shadow */
+    box-shadow:
+        0 10px 40px rgba(102, 126, 234, 0.3),
+        0 4px 12px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+    /* Border Subtle */
+    border: 1px solid rgba(255, 255, 255, 0.18);
+
+    /* Animation */
+    transition: all 0.3s ease;
+}
+
+.header-tab-wrapper:hover {
+    box-shadow:
+        0 15px 50px rgba(102, 126, 234, 0.4),
+        0 6px 16px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Nav Tabs di dalam Header Wrapper */
+.header-tab-wrapper .nav-tabs {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin-bottom: 0 !important;
+}
+
+/* Tab Item - Pill Style */
+.header-tab-wrapper .nav-item {
+    margin: 0 4px;
+}
+
+.header-tab-wrapper .nav-link {
+    /* Style Dasar */
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 12px 20px !important;
+
+    /* Font */
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.3px;
+
+    /* Transition */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+
+    /* Flex untuk Icon + Text */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+}
+
+.header-tab-wrapper .nav-link i {
+    font-size: 15px;
+    transition: transform 0.3s ease;
+}
+
+/* Hover Effect */
+.header-tab-wrapper .nav-link:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #fff !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.header-tab-wrapper .nav-link:hover i {
+    transform: scale(1.1);
+}
+
+/* Active Tab */
+.header-tab-wrapper .nav-link.active {
+    background: #fff !important;
+    color: #667eea !important;
+    font-weight: 700 !important;
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.15),
+        inset 0 -2px 0 #667eea !important;
+    transform: translateY(-2px) !important;
+}
+
+.header-tab-wrapper .nav-link.active i {
+    color: #764ba2 !important;
+}
+
+/* Tombol Logout di Header */
+.header-tab-wrapper #btn-logout {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%) !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow:
+        0 4px 15px rgba(238, 90, 90, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    width: 44px !important;
+    height: 44px !important;
+    transition: all 0.3s ease !important;
+}
+
+.header-tab-wrapper #btn-logout:hover {
+    background: linear-gradient(135deg, #ff5252 0%, #d63031 100%) !important;
+    transform: scale(1.1) rotate(90deg) !important;
+    box-shadow:
+        0 6px 20px rgba(214, 48, 49, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+.header-tab-wrapper #btn-logout i {
+    font-size: 18px !important;
+    color: #fff !important;
+}
+
+/* ============================================
+   RESPONSIVE - Mobile View
+   ============================================ */
+@media (max-width: 992px) {
+    .header-tab-wrapper {
+        padding: 10px 12px;
+        border-radius: 12px;
+    }
+
+    .header-tab-wrapper .nav-link {
+        padding: 10px 14px !important;
+        font-size: 12px !important;
+    }
+
+    .header-tab-wrapper .nav-link span {
+        display: none;
+        /* Hide text, show icon only on mobile */
+    }
+}
+
+@media (max-width: 576px) {
+    .header-tab-wrapper {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .header-tab-wrapper .nav-tabs {
+        order: 2;
+        width: 100%;
+        justify-content: space-around !important;
+    }
+
+    .header-tab-wrapper #btn-logout {
+        order: 1;
+        margin-left: auto;
+    }
+}

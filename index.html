@@ -39,45 +39,37 @@
 
     <div id="app-screen">
 
-        <nav class="navbar navbar-dark bg-primary sticky-top">
-            <div class="container-fluid">
-                <div class="navbar-brand d-flex align-items-center"
-                    style="flex-grow: 1; overflow: hidden; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);">
-                    <div class="running-text-wrapper" style="width: 100%;">
-                        <div id="header-running-text" class="running-text-content">
-                        </div>
-                    </div>
-                </div>
-
-                <button class="btn btn-danger btn-sm ms-3 fw-bold" onclick="handleLogout()"
-                    style="z-index: 10; white-space: nowrap;">
-                    <i class="fas fa-sign-out-alt"></i> Keluar
-                </button>
-            </div>
-        </nav>
-
         <div class="container-fluid py-4">
 
             <div id="alert-container"></div>
 
-            <ul class="nav nav-tabs mb-4 border-bottom" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard"
-                        type="button" role="tab"><i class="fas fa-chart-line"></i> Dashboard</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="data-master-tab" data-bs-toggle="tab" data-bs-target="#data-master"
-                        type="button" role="tab"><i class="fas fa-users"></i> Data Pelanggan</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="list-harian-tab" data-bs-toggle="tab" data-bs-target="#list-harian"
-                        type="button" role="tab"><i class="fas fa-receipt"></i> Transaksi Harian</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="rekap-tab" data-bs-toggle="tab" data-bs-target="#rekap" type="button"
-                        role="tab"><i class="fas fa-file-invoice-dollar"></i> Rekap Belum Lunas</button>
-                </li>
-            </ul>
+            <div class="d-flex justify-content-between align-items-center mb-4 header-tab-wrapper">
+                <ul class="nav nav-tabs border-0 flex-grow-1 justify-content-center" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab"
+                            data-bs-target="#dashboard" type="button" role="tab"><i class="fas fa-chart-line"></i>
+                            Dashboard</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="data-master-tab" data-bs-toggle="tab" data-bs-target="#data-master"
+                            type="button" role="tab"><i class="fas fa-users"></i> Data Pelanggan</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="list-harian-tab" data-bs-toggle="tab" data-bs-target="#list-harian"
+                            type="button" role="tab"><i class="fas fa-receipt"></i> Transaksi Harian</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="rekap-tab" data-bs-toggle="tab" data-bs-target="#rekap"
+                            type="button" role="tab"><i class="fas fa-file-invoice-dollar"></i> Rekap Belum
+                            Lunas</button>
+                    </li>
+                </ul>
+                <button id="btn-logout" class="btn btn-danger rounded-circle ms-3" title="Logout"
+                    onclick="handleLogout()">
+                    <i class="fas fa-power-off"></i>
+                </button>
+            </div>
+
 
             <div class="tab-content">
 
