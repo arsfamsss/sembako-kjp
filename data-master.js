@@ -290,22 +290,22 @@ function handleCSVFileUpload(input) {
 }
 
 /**
- * Handle submit CSV Import (UPSERT + SMART PARENT)
+ * Handle submit CSV Import (SMART RETRY + INDONESIAN LOG)
  */
 async function submitCSVImport() {
     if (!csvDataBuffer || csvDataBuffer.length === 0) {
         return showAlert('warning', 'Tidak ada data untuk diimport');
     }
 
+    const btn = document.getElementById('importCSVButton');
+    const originalText = btn.innerHTML;
+    
     try {
-        const btn = document.getElementById('importCSVButton');
-        const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
         showLoading(`Memproses ${csvDataBuffer.length} data...`);
 
-        // ========== HELPER ==========
-
+        // ========== HELPER LOKAL ==========
         const extractSmartParent = (fullName) => {
             if (!fullName) return '';
             let parent = fullName;
@@ -331,7 +331,27 @@ async function submitCSVImport() {
                 csvRow.no_kk === dbRow.no_kk;
         };
 
-        // ========== FASE 1: SIAPKAN DATA DARI CSV ==========
+        // Fungsi Penerjemah Error ke Bahasa Indonesia
+        const translateError = (err, row) => {
+            const msg = err.message || '';
+            const details = err.details || '';
+            
+            if (msg.includes('check_kjp_not_ktp') || details.includes('check_kjp_not_ktp')) {
+                return `Nomor KJP sama persis dengan KTP (Cek baris ${row._rowIndex})`;
+            }
+            if (msg.includes('unique') || msg.includes('duplicate')) {
+                return `Data Duplikat (No KJP/KTP sudah terdaftar)`;
+            }
+            if (msg.includes('check_kjp_length')) {
+                return `Digit KJP tidak sesuai (Harus 12-18 digit)`;
+            }
+             if (msg.includes('check_ktp_length')) {
+                return `Digit KTP salah (Harus 16 digit)`;
+            }
+            return `Gagal: ${msg}`; // Error lain
+        };
+
+        // ========== FASE 1: PERSIAPAN DATA ==========
 
         const validRows = [];
         csvDataBuffer.forEach((row, idx) => {
@@ -346,9 +366,10 @@ async function submitCSVImport() {
             const kjpClean = cleanNumber(row[keyKjp]);
             const namaClean = row[keyNama] ? row[keyNama].trim() : '';
 
+            // Validasi dasar sebelum masuk antrian
             if (kjpClean.length >= 5 && namaClean) {
                 validRows.push({
-                    _rowIndex: idx + 1,
+                    _rowIndex: idx + 2, // +2 karena index mulai 0 dan ada header
                     no_kjp: kjpClean,
                     nama_user: namaClean,
                     parent_name: extractSmartParent(namaClean),
@@ -360,97 +381,104 @@ async function submitCSVImport() {
         });
 
         if (validRows.length === 0) {
-            hideLoading();
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-            return showAlert('error', 'Tidak ada data valid. Pastikan kolom Nama & KJP terisi.');
+            throw new Error('Tidak ada data valid. Pastikan kolom Nama & KJP terisi.');
         }
 
-        // ========== FASE 2: AMBIL DATA EXISTING BERDASARKAN KJP ==========
-
+        // ========== FASE 2: CEK DATA EXISTING ==========
+        
         const allKjp = validRows.map(r => r.no_kjp);
         const { data: existingData, error: fetchError } = await supabase
             .from('data_master')
             .select('id, no_kjp, nama_user, no_ktp, no_kk')
             .in('no_kjp', allKjp);
 
-        if (fetchError) {
-            hideLoading();
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-            return showAlert('error', 'Gagal cek data existing: ' + fetchError.message);
-        }
+        if (fetchError) throw new Error('Gagal cek database: ' + fetchError.message);
 
         const existingMap = {};
         (existingData || []).forEach(row => {
             existingMap[row.no_kjp] = row;
         });
 
-        // ========== FASE 3: KATEGORI INSERT / UPDATE / SKIP ==========
+        // ========== FASE 3: PILAH DATA (INSERT/UPDATE/SKIP) ==========
 
         const toInsert = [];
         const toUpdate = [];
-        const skipped = []; // simpan info baris yang di-skip
+        const skipped = [];
 
         for (const csvRow of validRows) {
             const existing = existingMap[csvRow.no_kjp];
 
             if (!existing) {
-                // KJP belum ada -> INSERT
                 toInsert.push(csvRow);
             } else if (isIdentical(csvRow, existing)) {
-                // Data identik -> SKIP
                 skipped.push({
                     rowIndex: csvRow._rowIndex,
-                    reason: 'Data identik 100% (nama, no_kjp, no_ktp, no_kk)'
+                    nama: csvRow.nama_user,
+                    reason: 'Data sudah ada & sama persis'
                 });
             } else {
-                // KJP sama, ada field beda -> UPDATE
-                toUpdate.push({
-                    ...csvRow,
-                    id: existing.id
-                });
+                toUpdate.push({ ...csvRow, id: existing.id });
             }
         }
 
-        // ========== FASE 4: EKSEKUSI INSERT ==========
+        // ========== FASE 4: EKSEKUSI DENGAN SMART RETRY ==========
 
         let insertSuccess = 0;
-        let insertError = 0;
+        let updateSuccess = 0;
+        const failedRows = []; // Penampung detail error
+
+        // --- PROSES INSERT ---
         if (toInsert.length > 0) {
-            const BATCH = 100;
+            const BATCH = 50; // Kurangi batch biar lebih aman
             for (let i = 0; i < toInsert.length; i += BATCH) {
                 const chunk = toInsert.slice(i, i + BATCH);
-
-                // ✅ FIX: Hanya deklarasi sekali, buang _rowIndex
+                
+                // Siapkan data bersih (buang _rowIndex)
                 const cleanChunk = chunk.map(r => {
                     const { _rowIndex, ...rest } = r;
                     return rest;
                 });
 
-                const { error } = await supabase
-                    .from('data_master')
-                    .insert(cleanChunk);
+                // 1. COBA INSERT SEKALIGUS (PAKET)
+                const { error } = await supabase.from('data_master').insert(cleanChunk);
 
-                if (error) {
-                    console.error('Insert error:', error);
-                    insertError += chunk.length;
-                } else {
+                if (!error) {
                     insertSuccess += chunk.length;
+                } else {
+                    // 2. JIKA PAKET GAGAL, BONGKAR DAN MASUKKAN SATU-SATU
+                    console.warn(`⚠️ Batch gagal, mencoba mode satuan untuk ${chunk.length} data...`);
+                    
+                    for (const item of chunk) {
+                        const { _rowIndex, ...cleanItem } = item;
+                        
+                        const { error: singleError } = await supabase
+                            .from('data_master')
+                            .insert([cleanItem]);
+
+                        if (singleError) {
+                            // TANGKAP ERROR SPESIFIK & TERJEMAHKAN
+                            const errorIndo = translateError(singleError, item);
+                            console.error(`❌ Gagal Baris ${item._rowIndex} (${item.nama_user}):`, errorIndo);
+                            
+                            failedRows.push({
+                                baris: item._rowIndex,
+                                nama: item.nama_user,
+                                kjp: item.no_kjp,
+                                error: errorIndo
+                            });
+                        } else {
+                            insertSuccess++;
+                        }
+                    }
                 }
             }
         }
 
-        // ========== FASE 5: EKSEKUSI UPDATE ==========
-
-        let updateSuccess = 0;
-        let updateError = 0;
+        // --- PROSES UPDATE (Logika sama) ---
         if (toUpdate.length > 0) {
-            const BATCH = 100;
+            const BATCH = 50;
             for (let i = 0; i < toUpdate.length; i += BATCH) {
                 const chunk = toUpdate.slice(i, i + BATCH);
-
-                // ✅ FIX: Buang _rowIndex sebelum upsert
                 const cleanChunk = chunk.map(r => {
                     const { _rowIndex, ...rest } = r;
                     return rest;
@@ -460,65 +488,83 @@ async function submitCSVImport() {
                     .from('data_master')
                     .upsert(cleanChunk, { onConflict: 'id' });
 
-                if (error) {
-                    console.error('Update error:', error);
-                    updateError += chunk.length;
-                } else {
+                if (!error) {
                     updateSuccess += chunk.length;
+                } else {
+                    // Retry satu per satu jika batch update gagal
+                    for (const item of chunk) {
+                        const { _rowIndex, ...cleanItem } = item;
+                        const { error: singleError } = await supabase
+                            .from('data_master')
+                            .upsert([cleanItem], { onConflict: 'id' });
+
+                        if (singleError) {
+                            const errorIndo = translateError(singleError, item);
+                            failedRows.push({
+                                baris: item._rowIndex,
+                                nama: item.nama_user,
+                                error: `Gagal Update: ${errorIndo}`
+                            });
+                        } else {
+                            updateSuccess++;
+                        }
+                    }
                 }
             }
         }
 
-        // ========== FASE 6: SELESAI & LAPORAN ==========
+        // ========== FASE 5: LAPORAN AKHIR ==========
 
         hideLoading();
         btn.disabled = false;
         btn.innerHTML = originalText;
 
-        // optional: tutup modal import
+        // Tutup modal import
         const modalEl = document.getElementById('importCSVModal');
         if (modalEl) {
             const modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) modal.hide();
         }
 
-        let msg = '';
-        msg += `Berhasil INSERT: ${insertSuccess}\n`;
-        msg += `Berhasil UPDATE: ${updateSuccess}\n`;
-        msg += `Skip (identik): ${skipped.length}\n`;
-
-        if (skipped.length > 0) {
-            msg += `\nDetail skip:\n`;
-            skipped.slice(0, 10).forEach(s =>
-                msg += `- Baris ${s.rowIndex}: ${s.reason}\n`
-            );
-            if (skipped.length > 10) {
-                msg += `... dan ${skipped.length - 10} baris lain.\n`;
-            }
+        // Tampilkan Laporan di Console (Biar enak dibaca developer)
+        if (failedRows.length > 0) {
+            console.group("🚨 LAPORAN DATA GAGAL IMPORT");
+            console.table(failedRows);
+            console.groupEnd();
         }
 
-        const totalError = insertError + updateError;
-        if (totalError > 0) {
-            msg += `\nGagal proses: ${totalError}`;
-            showAlert('warning', msg);
+        // Tampilkan Laporan di Web (SweetAlert)
+        let msg = `✅ <b>Selesai!</b><br>`;
+        msg += `Input Baru: ${insertSuccess}<br>`;
+        msg += `Update Data: ${updateSuccess}<br>`;
+        msg += `Dilewati (Sama): ${skipped.length}<br>`;
+
+        if (failedRows.length > 0) {
+            msg += `<hr><b style="color:red">❌ GAGAL: ${failedRows.length} Data</b><br>`;
+            msg += `<div style="text-align:left; max-height:200px; overflow-y:auto; font-size:0.9em; border:1px solid #ddd; padding:5px;">`;
+            
+            failedRows.forEach(f => {
+                msg += `• <b>Baris ${f.baris}</b>: ${f.nama}<br>`;
+                msg += `&nbsp;&nbsp; <i>${f.error}</i><br>`;
+            });
+            msg += `</div>`;
+            
+            showAlert('warning', msg, 10000); // Tampil 10 detik
         } else {
             showAlert('success', msg);
         }
 
-        // reload tabel
+        // Reload tabel
         if (typeof loadDataMaster === 'function') {
             await loadDataMaster(1);
         }
 
     } catch (err) {
-        console.error('Error import CSV:', err);
+        console.error('Critial Import Error:', err);
         hideLoading();
-        const btn = document.getElementById('importCSVButton');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = 'Import Data';
-        }
-        showAlert('error', 'Gagal import: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        showAlert('error', 'Terjadi kesalahan sistem: ' + err.message);
     }
 }
 
