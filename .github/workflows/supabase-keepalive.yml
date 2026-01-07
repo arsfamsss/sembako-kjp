@@ -1,0 +1,22 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: "0 0 */3 * *"  # tiap 3 hari (UTC)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST (data_master)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Pinging Supabase..."
+          curl -sS -o /dev/null -w "HTTP_STATUS=%{http_code}\n" \
+            "$SUPABASE_URL/rest/v1/data_master?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Accept: application/json"
