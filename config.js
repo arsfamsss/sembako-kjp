@@ -8,22 +8,32 @@ const SUPABASE_CONFIG = {
     ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZleXhpZXRncHJ0a3BtdnpndGp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3OTg5MTUsImV4cCI6MjA3ODM3NDkxNX0.ahnwoSSy7yj31NAvQoEhk8koZfUBskVtAkmfiTFw7Og',  // Ganti dengan key Anda
 };
 
-// Initialize Supabase Client (PERBAIKAN)
-let supabase;
-
-document.addEventListener('DOMContentLoaded', function () {
+// Initialize Supabase Client (FIX: jangan redeclare global "supabase")
+(function initSupabaseClient() {
     try {
+        // Jika sudah berupa client (ada .from), jangan init ulang
+        if (window.supabase && typeof window.supabase.from === 'function') {
+            console.log('✅ Supabase client already initialized');
+            return;
+        }
+
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+            throw new Error('Supabase JS library belum ter-load (window.supabase.createClient tidak ada)');
+        }
+
         const { createClient } = window.supabase;
-        supabase = createClient(
-            SUPABASE_CONFIG.URL,
-            SUPABASE_CONFIG.ANON_KEY
-        );
-        console.log('✅ Supabase initialized successfully');
+
+        // IMPORTANT:
+        // Overwrite window.supabase (yang awalnya "library object") menjadi "client"
+        // Ini menghindari konflik deklarasi `let/const supabase`.
+        window.supabase = createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+
+        console.log('✅ Supabase client initialized successfully');
     } catch (error) {
-        console.error('❌ Error initializing Supabase:', error);
-        console.error('Make sure Supabase JS library is loaded from CDN');
+        console.error('❌ Error initializing Supabase client:', error);
     }
-});
+})();
+
 
 // ============================================
 // CONSTANTS

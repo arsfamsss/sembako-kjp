@@ -4,30 +4,24 @@
 
 console.log('Loading auth.js...');
 
-// Cek status login saat aplikasi dibuka
-document.addEventListener('DOMContentLoaded', function() {
-    // Beri jeda sedikit agar Supabase terinisialisasi di config.js
-    setTimeout(checkSession, 500);
+// LANGSUNG MASUK TANPA LOGIN
+document.addEventListener('DOMContentLoaded', function () {
+    showApp(); // langsung buka aplikasi
 });
 
+
 async function checkSession() {
-    if (!supabase) return;
-
-    // Cek apakah ada user yang sedang login
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (session) {
-        showApp(); // Jika ada sesi, buka aplikasi
-    } else {
-        showLogin(); // Jika tidak, tampilkan login
-    }
+    // MODE TANPA LOGIN
+    showApp();
 }
+
+
 
 // Tampilkan Aplikasi Utama
 function showApp() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
-    
+
     // Jalankan inisialisasi aplikasi (dari app.js) jika belum jalan
     if (typeof initializeApp === 'function') {
         // Cek agar tidak double init
@@ -64,7 +58,11 @@ async function handleLogin(event) {
             password: password,
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Login error:', error);
+            throw error; // biar UI tetap tampil "gagal" tapi console lebih jelas
+        }
+
 
         // Jika sukses
         showApp();
@@ -85,8 +83,5 @@ async function handleLogin(event) {
 
 // Fungsi Logout
 async function handleLogout() {
-    if (confirm('Apakah Anda yakin ingin keluar?')) {
-        await supabase.auth.signOut();
-        location.reload(); // Refresh halaman untuk kembali ke login
-    }
+    alert('Mode tanpa login: tombol logout tidak digunakan.');
 }

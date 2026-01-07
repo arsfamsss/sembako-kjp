@@ -20,7 +20,7 @@
             </h3>
             <p class="text-muted mb-4">Silakan login untuk mengakses data.</p>
 
-            <form onsubmit="handleLogin(event)">
+            <form>
                 <div class="mb-3 text-start">
                     <label class="form-label fw-bold">Email</label>
                     <input type="email" id="email" class="form-control" placeholder="admin@sembako.com" required>
@@ -64,10 +64,8 @@
                             Lunas</button>
                     </li>
                 </ul>
-                <button id="btn-logout" class="btn btn-danger rounded-circle ms-3" title="Logout"
-                    onclick="handleLogout()">
-                    <i class="fas fa-power-off"></i>
-                </button>
+                <!-- (PATCH) tombol logout dihapus karena mode tanpa login -->
+
             </div>
 
 
@@ -663,13 +661,14 @@
 
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="status_bayar" class="form-label">Status Bayar <span
+                                    <label for="bulk-status-bayar" class="form-label">Status Bayar <span
                                             class="text-danger">*</span></label>
-                                    <select class="form-select" id="status_bayar" required>
+                                    <select class="form-select" id="bulk-status-bayar" required>
                                         <option value="LUNAS">LUNAS</option>
                                         <option value="BELUM LUNAS">BELUM LUNAS</option>
                                         <option value="CANCEL">CANCEL</option>
                                     </select>
+
                                 </div>
                             </div>
 
